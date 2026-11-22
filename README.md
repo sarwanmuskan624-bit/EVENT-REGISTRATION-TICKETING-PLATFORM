@@ -10,7 +10,7 @@ EventHub is a student event-registration platform. Visitors can browse events, r
 - Receive a ticket with a unique ticket code and QR code.
 - Prevent duplicate registrations for the same event using the same email address.
 - Validate name, email, phone number and event availability before saving a registration.
-- Simulate a successful or failed payment (demo only; no real money is charged).
+- Pay using Razorpay Checkout in Test Mode; the backend verifies the payment signature before marking a ticket Paid.
 - Print the ticket.
 
 ### Admin workspace
@@ -66,9 +66,11 @@ Create `server/.env` for the backend:
 PORT=5000
 SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
 SUPABASE_SECRET_KEY=YOUR_SUPABASE_SERVICE_ROLE_SECRET
+RAZORPAY_KEY_ID=rzp_test_your_key_id
+RAZORPAY_KEY_SECRET=your_razorpay_test_key_secret
 ```
 
-Keep both real `.env` files private. Never commit a service-role/secret key or share it in screenshots. The backend secret belongs only on the server (for local use in `server/.env`, and in Render environment settings in production). The frontend must use only the Supabase anon/publishable key.
+Keep both real `.env` files private. Never commit a service-role/secret key or share it in screenshots. The backend Supabase secret and Razorpay key secret belong only on the server (for local use in `server/.env`, and in Render environment settings in production). Never place either secret in frontend code or GitHub. The frontend must use only the Supabase anon/publishable key.
 
 ## Supabase data
 
@@ -125,11 +127,19 @@ The API listens on port 5000 by default. The frontend's `API_URL` in `src/App.js
 | GET | `/` | Backend health message |
 | GET | `/api/events` | List events |
 | POST | `/api/registrations` | Create registration and ticket code |
-| POST | `/api/simulate-payment` | Simulate payment status |
+| POST | `/api/payments/create-order` | Create a Razorpay order for a ticket |
+| POST | `/api/payments/verify` | Verify payment signature and mark ticket Paid |
 | POST | `/api/validate-ticket` | Validate QR ticket and check in attendee |
 | GET | `/api/health` | Backend health check |
 
-Payment is a demonstration only. It is not a real payment gateway and must not be presented as accepting real money.
+Razorpay is configured for Test Mode. Test payments do not transfer real money. Add Razorpay Test Mode credentials to the Render backend environment; never put the key secret in frontend variables or GitHub source.
+
+## Razorpay Test Mode setup
+1. Create a Razorpay account and switch to **Test Mode**.
+2. Generate Test Mode API keys in the Razorpay dashboard.
+3. Add `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` to the Render backend environment variables. Keep the key secret private.
+4. Run `supabase/razorpay-migration.sql` once in the Supabase SQL Editor.
+5. Redeploy the Render service and test checkout using Razorpay test credentials.
 
 ## Deployment
 - Frontend: GitHub Pages
@@ -145,7 +155,7 @@ The Vite `base` setting is configured for the repository's GitHub Pages path. A 
 - The admin UI is protected by Supabase sign-in, but database permissions must also be enforced by Supabase policies.
 
 ## Known scope / limitations
-- Payment is simulated only; no real payment provider is connected.
+- Razorpay Test Mode is used for test transactions; live payments require a separate production-key configuration and operational review.
 - Email confirmations are not implemented. Users can print tickets or use the browser's Save as PDF option.
 - Event capacity limits are not enforced.
 - Registration closes at the end of the event date; there is no separate configurable registration deadline.
