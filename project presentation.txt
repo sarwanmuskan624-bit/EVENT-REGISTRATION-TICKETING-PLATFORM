@@ -10,7 +10,7 @@ EventHub is a web-based event registration and ticketing platform. Students can 
 - **Backend:** Node.js and Express.js
 - **Database:** Supabase (PostgreSQL)
 - **Authentication:** Supabase Authentication
-- **Payments:** Razorpay Checkout – Test Mode
+- **Payments:** Demo payment simulation (no real money)
 - **QR Tickets:** qrcode.react
 - **QR Scanning:** html5-qrcode
 - **Deployment:** GitHub Pages (frontend) and Render (backend)
@@ -22,7 +22,7 @@ EventHub is a web-based event registration and ticketing platform. Students can 
 2. Register with name, email and phone number.
 3. Prevent duplicate registrations for the same event and email.
 4. Generate a unique Ticket ID and QR code.
-5. Pay using Razorpay Test Mode for paid events.
+5. Complete the demo payment simulation for paid events.
 6. View and print the digital ticket.
 
 ### Admin Workspace
@@ -58,8 +58,7 @@ The project uses Supabase PostgreSQL with two main tables.
 - payment_status
 - attendance_status
 - created_at
-- razorpay_order_id
-- razorpay_payment_id
+- (No payment-gateway credentials or payment IDs are stored)
 
 Row Level Security (RLS) is enabled. The backend uses its private Supabase service key; it must never be exposed in frontend code or GitHub.
 
@@ -69,9 +68,7 @@ Row Level Security (RLS) is enabled. The backend uses its private Supabase servi
 2. The student submits registration details.
 3. The backend validates the details, checks for duplicate registrations and saves the registration.
 4. EventHub generates a unique Ticket ID and QR ticket.
-5. For a paid event, the backend creates a Razorpay order in Test Mode.
-6. Razorpay Checkout processes the test payment.
-7. The backend verifies the Razorpay signature and confirms the captured payment before marking the ticket Paid.
+5. For a paid event, the student can choose Complete demo payment. The backend updates the ticket status to Paid for project demonstration; no payment gateway is contacted and no real money is charged.
 8. The admin can scan the QR code or enter the Ticket ID to check in the attendee.
 9. The admin reviews analytics and exports registration data when required.
 
@@ -93,9 +90,9 @@ Row Level Security (RLS) is enabled. The backend uses its private Supabase servi
 - Payment and attendance status management.
 - QR scanner and manual Ticket ID validation.
 - Reports, charts and CSV export.
-- Razorpay Test Mode payment success/failure flow after credentials and database migration are configured.
+- Demo payment flow and paid-ticket check-in.
 
-**Payment note:** Razorpay Test Mode is for demonstration and testing. It does not transfer real money. Live payments require separate account activation, Live Mode credentials and production checks.
+**Payment note:** The payment button is a clearly labelled academic demo simulation. It does not contact a payment gateway or charge real money. A real payment gateway would require merchant onboarding, credentials and security review.
 
 ## 8. Challenges Faced
 
@@ -103,7 +100,7 @@ Row Level Security (RLS) is enabled. The backend uses its private Supabase servi
 - Configuring database tables and Row Level Security.
 - Implementing admin authentication and CRUD operations.
 - Generating and validating QR tickets.
-- Verifying payment results securely on the backend.
+- Implementing a clearly labelled demo payment workflow.
 - Deploying the frontend and backend separately.
 
 ## 9. Future Improvements
@@ -111,11 +108,11 @@ Row Level Security (RLS) is enabled. The backend uses its private Supabase servi
 - Email confirmations and ticket delivery.
 - Configurable event capacity and registration deadlines.
 - Downloadable PDF tickets.
-- Live payment activation after the required merchant approval and production review.
+- Optional real payment gateway integration after merchant onboarding and production security review.
 
 ## 10. Conclusion
 
-EventHub demonstrates a full-stack event registration and ticketing workflow using React, Express, Supabase, Razorpay Test Mode and QR validation. The project provides practical experience in frontend development, backend APIs, database operations, authentication, payment verification, reporting and deployment.
+EventHub demonstrates a full-stack event registration and ticketing workflow using React, Express, Supabase, demo payment simulation and QR validation. The project provides practical experience in frontend development, backend APIs, database operations, authentication, payment verification, reporting and deployment.
 
 ---
 
@@ -129,7 +126,7 @@ The purpose of this project is to make event registration, ticket booking and en
 
 I developed the frontend using React and Vite, the backend using Node.js and Express, and I used Supabase for the database and admin authentication.
 
-Students can explore events, register online, complete a Razorpay Test Mode payment for paid events and receive a digital ticket with a QR code.
+Students can explore events, register online, complete a demo payment simulation for paid events and receive a digital ticket with a QR code.
 
 The admin can manage events, search registrations, view tickets, verify QR codes at the entry gate and view reports and analytics.
 
@@ -161,13 +158,13 @@ Supabase is a backend platform that provides a PostgreSQL database, authenticati
 
 CRUD stands for Create, Read, Update and Delete.
 
-**Q6. What is Razorpay Test Mode?**
+**Q6. What is demo payment mode?**
 
-Razorpay Test Mode is a sandbox environment used to test payment integration without transferring real money.
+It is a project simulation that marks a ticket as Paid for demonstration. It does not connect to a payment gateway or charge real money.
 
 **Q7. Why is payment signature verification required?**
 
-The backend verifies the signature to confirm that the payment response came from Razorpay and was not modified.
+For this academic demo, the backend updates the payment status through a clearly labelled simulation endpoint. It is not suitable for real payments.
 
 **Q8. How is the QR code generated?**
 
@@ -187,4 +184,4 @@ The frontend is deployed on GitHub Pages and the Express backend is hosted on Re
 
 **Q12. What did you learn from this project?**
 
-I learned React, Node.js, Express, Supabase, authentication, CRUD operations, Razorpay Test Mode integration, QR code generation and validation, reporting and deployment.
+I learned React, Node.js, Express, Supabase, authentication, CRUD operations, demo payment simulation, QR code generation and validation, reporting and deployment.
