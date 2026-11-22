@@ -284,69 +284,25 @@ export default function App() {
     }
   }
 
-  // Razorpay checkout with server-side order creation and signature verification.
-  async function startRazorpayPayment() {
+  // Clearly labelled demo payment for college project presentation.
+  async function completeDemoPayment() {
     if (!ticket?.id || Number(ticket.price || 0) <= 0) return;
     setPaymentBusy(true);
     setPaymentResult("");
     try {
-      const orderResponse = await fetch(`${API_URL}/api/payments/create-order`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
+      const response = await fetch(`${API_URL}/api/demo-payment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ticket_code: ticket.id })
       });
-      const orderData = await orderResponse.json();
-      if (!orderResponse.ok) throw new Error(orderData.error || "Could not start secure payment.");
-
-      if (!window.Razorpay) {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement("script");
-          script.src = "https://checkout.razorpay.com/v1/checkout.js";
-          script.onload = resolve;
-          script.onerror = () => reject(new Error("Razorpay Checkout could not be loaded. Check your internet connection."));
-          document.body.appendChild(script);
-        });
-      }
-
-      const checkout = new window.Razorpay({
-        key: orderData.key_id, amount: orderData.amount,
-        currency: orderData.currency || "INR", name: "EventHub",
-        description: `Event ticket - ${ticket.event}`, order_id: orderData.order_id,
-        prefill: { name: ticket.name || "", email: ticket.email || "" },
-        theme: { color: "#8b5cf6" },
-        handler: async (response) => {
-          try {
-            const verifyResponse = await fetch(`${API_URL}/api/payments/verify`, {
-              method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                ticket_code: ticket.id,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature
-              })
-            });
-            const verifyData = await verifyResponse.json();
-            if (!verifyResponse.ok) throw new Error(verifyData.error || "Payment verification failed.");
-            setTicket((current) => ({ ...current, payment_status: "Paid" }));
-            setPaymentResult("Payment verified successfully. Your ticket is marked as Paid.");
-            if (session) await loadAdminData();
-          } catch (error) {
-            setPaymentResult(error.message || "Payment verification failed. Contact the event administrator.");
-          } finally { setPaymentBusy(false); }
-        },
-        modal: {
-          ondismiss: () => {
-            setPaymentBusy(false);
-            setPaymentResult("Payment window closed. Your ticket remains Pending until payment is completed.");
-          }
-        }
-      });
-      checkout.on("payment.failed", (response) => {
-        setPaymentBusy(false);
-        setPaymentResult(response.error?.description || "Payment was not completed. Your ticket remains Pending.");
-      });
-      checkout.open();
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Demo payment could not be completed.");
+      setTicket((current) => ({ ...current, payment_status: "Paid" }));
+      setPaymentResult("Demo payment successful. This is a project simulation; no real money was charged.");
+      if (session) await loadAdminData();
     } catch (error) {
-      setPaymentResult(error.message || "Could not start payment.");
+      setPaymentResult(error.message || "Demo payment could not be completed.");
+    } finally {
       setPaymentBusy(false);
     }
   }
@@ -534,12 +490,12 @@ export default function App() {
 
           <section className="payment-demo-panel">
             <div>
-              <span className="eyebrow">SECURE PAYMENT</span>
+              <span className="eyebrow">DEMO PAYMENT</span>
               <h2>Payment status: {ticket.payment_status || "Pending"}</h2>
               <p className="muted">
                 {Number(ticket.price || 0) <= 0
                   ? "This is a free event. No payment is required."
-                  : `Ticket amount: ₹${Number(ticket.price).toLocaleString("en-IN")}. Payments are processed securely through Razorpay Test Mode.`}
+                  : `Ticket amount: ₹${Number(ticket.price).toLocaleString("en-IN")}. This is a project demo; no real money is charged..`}
               </p>
             </div>
             {Number(ticket.price || 0) <= 0 ? (
@@ -549,7 +505,7 @@ export default function App() {
             ) : (
               <div className="payment-demo-actions">
                 <button className="btn btn-primary" disabled={paymentBusy} onClick={startRazorpayPayment}>
-                  {paymentBusy ? "Opening secure checkout…" : "Pay securely with Razorpay"}
+                  {paymentBusy ? "Opening secure checkout…" : "Complete demo payment"}
                 </button>
               </div>
             )}
