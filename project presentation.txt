@@ -2,44 +2,44 @@
 
 ## 1. Project Introduction
 
-EventHub is a web-based Event Registration and Ticketing Platform developed to make event management easier for students and administrators.
-
-Students can explore upcoming events, register online and receive a digital ticket with a QR code. Administrators can manage events, view registrations and update payment and attendance status.
+EventHub is a web-based event registration and ticketing platform. Students can explore events, register online, complete a test payment, and receive a digital ticket with a unique QR code. Administrators can manage events, registrations, payments, reports and event entry.
 
 ## 2. Technologies Used
 
-- **Frontend:** React.js
-- **Build Tool:** Vite
-- **Programming Language:** JavaScript
-- **Styling:** CSS
-- **Backend & Database:** Supabase
+- **Frontend:** React.js 19, JavaScript, Vite and CSS
+- **Backend:** Node.js and Express.js
+- **Database:** Supabase (PostgreSQL)
 - **Authentication:** Supabase Authentication
-- **Deployment:** GitHub Pages
-- **QR Code:** qrcode.react
+- **Payments:** Razorpay Checkout – Test Mode
+- **QR Tickets:** qrcode.react
+- **QR Scanning:** html5-qrcode
+- **Deployment:** GitHub Pages (frontend) and Render (backend)
 
 ## 3. Main Features
 
-### Student Features
-1. View upcoming events.
-2. Check event date, venue and ticket price.
-3. Register for an event.
-4. Receive a digital ticket.
-5. View a QR code on the ticket.
-6. Print the ticket.
+### Student / Public Website
+1. Browse upcoming events with date, venue and ticket price.
+2. Register with name, email and phone number.
+3. Prevent duplicate registrations for the same event and email.
+4. Generate a unique Ticket ID and QR code.
+5. Pay using Razorpay Test Mode for paid events.
+6. View and print the digital ticket.
 
-### Admin Features
-1. Admin login.
-2. Admin dashboard.
-3. Add and manage events.
-4. View student registrations.
-5. Search registrations by name, email or ticket ID.
-6. Update payment status.
-7. Update attendance status.
-8. Delete registrations.
+### Admin Workspace
+1. Secure admin login using Supabase Authentication.
+2. Dashboard with event, registration, paid-ticket and check-in counts.
+3. Create, edit and delete events.
+4. Search registrations by student name, email or Ticket ID.
+5. View a student's complete digital ticket.
+6. Review payment and attendance status.
+7. Scan QR codes or manually enter Ticket IDs for validation.
+8. Reject invalid tickets and prevent duplicate check-ins.
+9. View payment, attendance and event-wise analytics.
+10. Export registration records to CSV.
 
 ## 4. Database
 
-The project uses Supabase with two main tables:
+The project uses Supabase PostgreSQL with two main tables.
 
 **Events**
 - id
@@ -58,65 +58,64 @@ The project uses Supabase with two main tables:
 - payment_status
 - attendance_status
 - created_at
+- razorpay_order_id
+- razorpay_payment_id
 
-Row Level Security (RLS) is enabled to control database access.
+Row Level Security (RLS) is enabled. The backend uses its private Supabase service key; it must never be exposed in frontend code or GitHub.
 
 ## 5. How the Project Works
 
-1. The student opens the public website.
-2. The student selects an event.
-3. The student enters registration details.
-4. The registration is saved in Supabase.
-5. A unique ticket ID is generated.
-6. A QR code is displayed on the digital ticket.
-7. The administrator views the registration in the dashboard.
-8. The administrator updates payment and attendance status.
+1. A student opens the public EventHub website and selects an event.
+2. The student submits registration details.
+3. The backend validates the details, checks for duplicate registrations and saves the registration.
+4. EventHub generates a unique Ticket ID and QR ticket.
+5. For a paid event, the backend creates a Razorpay order in Test Mode.
+6. Razorpay Checkout processes the test payment.
+7. The backend verifies the Razorpay signature and confirms the captured payment before marking the ticket Paid.
+8. The admin can scan the QR code or enter the Ticket ID to check in the attendee.
+9. The admin reviews analytics and exports registration data when required.
 
-## 6. Project Deployment
+## 6. Deployment
 
-The frontend is deployed using GitHub Pages, while Supabase provides the backend database and authentication.
-
-**Live Project:**  
-https://sarwanmuskan624-bit.github.io/EVENT-REGISTRATION-TICKETING-PLATFORM/
-
-**GitHub Repository:**  
-https://github.com/sarwanmuskan624-bit/EVENT-REGISTRATION-TICKETING-PLATFORM
+- **Live Project:** https://sarwanmuskan624-bit.github.io/EVENT-REGISTRATION-TICKETING-PLATFORM/
+- **GitHub Repository:** https://github.com/sarwanmuskan624-bit/EVENT-REGISTRATION-TICKETING-PLATFORM
+- **Backend:** https://event-registration-ticketing-platform.onrender.com
+- **Database and Authentication:** Supabase
 
 ## 7. Testing Performed
 
-- Event listing successfully loaded.
-- Student registration successfully saved.
-- Digital ticket and QR code generated.
-- Registration appeared in the admin dashboard.
-- Payment status update saved after refresh.
-- Attendance status update saved after refresh.
+- Public event listing and event registration.
+- Duplicate registration validation.
+- Ticket ID and QR ticket generation.
+- Admin login.
+- Add, edit and delete event operations.
+- Registration search and View Ticket.
+- Payment and attendance status management.
+- QR scanner and manual Ticket ID validation.
+- Reports, charts and CSV export.
+- Razorpay Test Mode payment success/failure flow after credentials and database migration are configured.
+
+**Payment note:** Razorpay Test Mode is for demonstration and testing. It does not transfer real money. Live payments require separate account activation, Live Mode credentials and production checks.
 
 ## 8. Challenges Faced
 
-During development, I faced some challenges:
-
-- Connecting React with Supabase.
-- Configuring database tables and columns.
-- Handling Row Level Security policies.
-- Fixing registration errors.
-- Deploying the application using GitHub Pages.
-
-I solved these problems through testing, debugging and database configuration.
+- Connecting React with the Express backend and Supabase.
+- Configuring database tables and Row Level Security.
+- Implementing admin authentication and CRUD operations.
+- Generating and validating QR tickets.
+- Verifying payment results securely on the backend.
+- Deploying the frontend and backend separately.
 
 ## 9. Future Improvements
 
-- Online payment gateway integration.
-- QR code scanning and ticket verification.
-- Email confirmation after registration.
-- Event capacity management.
-- Downloadable ticket PDF.
-- Advanced analytics and reports.
+- Email confirmations and ticket delivery.
+- Configurable event capacity and registration deadlines.
+- Downloadable PDF tickets.
+- Live payment activation after the required merchant approval and production review.
 
 ## 10. Conclusion
 
-EventHub helped me understand frontend development, database integration, authentication, CRUD operations, debugging and deployment.
-
-This project improved my practical knowledge of building and deploying a full-stack web application.
+EventHub demonstrates a full-stack event registration and ticketing workflow using React, Express, Supabase, Razorpay Test Mode and QR validation. The project provides practical experience in frontend development, backend APIs, database operations, authentication, payment verification, reporting and deployment.
 
 ---
 
@@ -126,17 +125,17 @@ This project improved my practical knowledge of building and deploying a full-st
 
 My project name is EventHub – Event Registration and Ticketing Platform.
 
-The main purpose of this project is to make event registration and management easier.
+The purpose of this project is to make event registration, ticket booking and entry management easier.
 
-I developed the frontend using React.js and JavaScript, and I used Supabase for database management and authentication.
+I developed the frontend using React and Vite, the backend using Node.js and Express, and I used Supabase for the database and admin authentication.
 
-Students can view upcoming events, register for an event and receive a digital ticket with a QR code.
+Students can explore events, register online, complete a Razorpay Test Mode payment for paid events and receive a digital ticket with a QR code.
 
-The admin can add events, view student registrations and manage payment and attendance status.
+The admin can manage events, search registrations, view tickets, verify QR codes at the entry gate and view reports and analytics.
 
-I also deployed my project using GitHub Pages.
+I also deployed the frontend on GitHub Pages and the backend on Render.
 
-While developing this project, I learned how to connect a frontend application with a backend database, manage authentication, handle errors and deploy a website.
+While developing this project, I learned frontend development, backend API integration, database management, authentication, payment verification, QR scanning and deployment.
 
 Thank you."
 
@@ -146,30 +145,46 @@ Thank you."
 
 React.js is a JavaScript library used to build user interfaces.
 
-**Q2. What is Supabase?**
+**Q2. What is Node.js?**
 
-Supabase is a backend platform that provides database, authentication and other backend services.
+Node.js is a JavaScript runtime used to run JavaScript outside the browser, including backend applications.
 
-**Q3. What is CRUD?**
+**Q3. What is Express.js?**
+
+Express.js is a Node.js framework used to create backend routes and APIs.
+
+**Q4. What is Supabase?**
+
+Supabase is a backend platform that provides a PostgreSQL database, authentication and other backend services.
+
+**Q5. What is CRUD?**
 
 CRUD stands for Create, Read, Update and Delete.
 
-**Q4. Why did you use Supabase?**
+**Q6. What is Razorpay Test Mode?**
 
-I used Supabase to store event and registration data and manage admin authentication.
+Razorpay Test Mode is a sandbox environment used to test payment integration without transferring real money.
 
-**Q5. What is RLS?**
+**Q7. Why is payment signature verification required?**
+
+The backend verifies the signature to confirm that the payment response came from Razorpay and was not modified.
+
+**Q8. How is the QR code generated?**
+
+I used the qrcode.react library to generate a QR code containing the unique Ticket ID.
+
+**Q9. How does QR ticket validation work?**
+
+The scanner reads the Ticket ID from the QR code. The backend checks the ticket, payment status and attendance status before marking the attendee Present.
+
+**Q10. What is RLS?**
 
 RLS stands for Row Level Security. It controls which users can access or modify database records.
 
-**Q6. How is the QR code generated?**
+**Q11. Where is the project deployed?**
 
-I used the qrcode.react library to generate a QR code using the unique ticket ID.
+The frontend is deployed on GitHub Pages and the Express backend is hosted on Render. Supabase provides the database and authentication.
 
-**Q7. Where is your project deployed?**
+**Q12. What did you learn from this project?**
 
-My frontend is deployed on GitHub Pages and the backend database is managed through Supabase.
-
-**Q8. What did you learn from this project?**
-
-I learned React, JavaScript, Supabase integration, database management, authentication, debugging and deployment.
+I learned React, Node.js, Express, Supabase, authentication, CRUD operations, Razorpay Test Mode integration, QR code generation and validation, reporting and deployment.
