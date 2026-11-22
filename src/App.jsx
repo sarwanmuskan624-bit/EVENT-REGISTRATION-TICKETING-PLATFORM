@@ -284,63 +284,72 @@ export default function App() {
     }
   }
 
-  // Demo-only payment simulation. This does not charge real money.
-  
-  // Demo-only payment simulation. This does not charge real money.
-  async function simulatePayment(outcome) {
-    if (!ticket?.id) return;
-
+  // Razorpay checkout with server-side order creation and signature verification.
+  async function startRazorpayPayment() {
+    if (!ticket?.id || Number(ticket.price || 0) <= 0) return;
     setPaymentBusy(true);
     setPaymentResult("");
-
     try {
-      const response = await fetch(`${API_URL}/api/simulate-payment`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          ticket_code: ticket.id,
-          payment_result: outcome === "success" ? "success" : "failed"
-        })
+      const orderResponse = await fetch(`${API_URL}/api/payments/create-order`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticket_code: ticket.id })
       });
+      const orderData = await orderResponse.json();
+      if (!orderResponse.ok) throw new Error(orderData.error || "Could not start secure payment.");
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          result.error || result.message || "Payment simulation failed."
-        );
+      if (!window.Razorpay) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://checkout.razorpay.com/v1/checkout.js";
+          script.onload = resolve;
+          script.onerror = () => reject(new Error("Razorpay Checkout could not be loaded. Check your internet connection."));
+          document.body.appendChild(script);
+        });
       }
 
-      const updatedStatus =
-        result.payment_status ||
-        (outcome === "success" ? "Paid" : "Pending");
-
-      setTicket((current) => ({
-        ...current,
-        payment_status: updatedStatus
-      }));
-
-      if (updatedStatus === "Paid") {
-        setPaymentResult(
-          "Demo payment successful. Registration payment status is now Paid."
-        );
-      } else {
-        setPaymentResult(
-          "Demo payment failed. Payment status remains Pending."
-        );
-      }
-
-      if (session) await loadAdminData();
-
+      const checkout = new window.Razorpay({
+        key: orderData.key_id, amount: orderData.amount,
+        currency: orderData.currency || "INR", name: "EventHub",
+        description: `Event ticket - ${ticket.event}`, order_id: orderData.order_id,
+        prefill: { name: ticket.name || "", email: ticket.email || "" },
+        theme: { color: "#8b5cf6" },
+        handler: async (response) => {
+          try {
+            const verifyResponse = await fetch(`${API_URL}/api/payments/verify`, {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                ticket_code: ticket.id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature
+              })
+            });
+            const verifyData = await verifyResponse.json();
+            if (!verifyResponse.ok) throw new Error(verifyData.error || "Payment verification failed.");
+            setTicket((current) => ({ ...current, payment_status: "Paid" }));
+            setPaymentResult("Payment verified successfully. Your ticket is marked as Paid.");
+            if (session) await loadAdminData();
+          } catch (error) {
+            setPaymentResult(error.message || "Payment verification failed. Contact the event administrator.");
+          } finally { setPaymentBusy(false); }
+        },
+        modal: {
+          ondismiss: () => {
+            setPaymentBusy(false);
+            setPaymentResult("Payment window closed. Your ticket remains Pending until payment is completed.");
+          }
+        }
+      });
+      checkout.on("payment.failed", (response) => {
+        setPaymentBusy(false);
+        setPaymentResult(response.error?.description || "Payment was not completed. Your ticket remains Pending.");
+      });
+      checkout.open();
     } catch (error) {
-      setPaymentResult(error.message);
-    } finally {
+      setPaymentResult(error.message || "Could not start payment.");
       setPaymentBusy(false);
     }
   }
-
 
   async function updateRegistration(id, field, value) {
     const column =
@@ -525,29 +534,22 @@ export default function App() {
 
           <section className="payment-demo-panel">
             <div>
-              <span className="eyebrow">DEMO PAYMENT</span>
+              <span className="eyebrow">SECURE PAYMENT</span>
               <h2>Payment status: {ticket.payment_status || "Pending"}</h2>
               <p className="muted">
-                Amount: ₹{Number(ticket.price || 0).toLocaleString("en-IN")}. This is a simulated payment only; no real money is charged.
+                {Number(ticket.price || 0) <= 0
+                  ? "This is a free event. No payment is required."
+                  : `Ticket amount: ₹${Number(ticket.price).toLocaleString("en-IN")}. Payments are processed securely through Razorpay Test Mode.`}
               </p>
             </div>
-            {ticket.payment_status === "Paid" ? (
-              <p className="payment-success"><CheckCircle size={17} /> Payment marked as Paid</p>
+            {Number(ticket.price || 0) <= 0 ? (
+              <p className="payment-success"><CheckCircle size={17} /> Free ticket — no payment required</p>
+            ) : ticket.payment_status === "Paid" ? (
+              <p className="payment-success"><CheckCircle size={17} /> Payment verified successfully</p>
             ) : (
               <div className="payment-demo-actions">
-                <button
-                  className="btn btn-primary"
-                  disabled={paymentBusy}
-                  onClick={() => simulatePayment("success")}
-                >
-                  {paymentBusy ? "Processing…" : "Simulate successful payment"}
-                </button>
-                <button
-                  className="btn btn-ghost"
-                  disabled={paymentBusy}
-                  onClick={() => simulatePayment("failure")}
-                >
-                  Simulate failed payment
+                <button className="btn btn-primary" disabled={paymentBusy} onClick={startRazorpayPayment}>
+                  {paymentBusy ? "Opening secure checkout…" : "Pay securely with Razorpay"}
                 </button>
               </div>
             )}
