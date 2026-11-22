@@ -504,7 +504,7 @@ export default function App() {
               <p className="payment-success"><CheckCircle size={17} /> Payment verified successfully</p>
             ) : (
               <div className="payment-demo-actions">
-                <button className="btn btn-primary" disabled={paymentBusy} onClick={startRazorpayPayment}>
+                <button className="btn btn-primary" disabled={paymentBusy} onClick={completeDemoPayment}>
                   {paymentBusy ? "Opening secure checkout…" : "Complete demo payment"}
                 </button>
               </div>
