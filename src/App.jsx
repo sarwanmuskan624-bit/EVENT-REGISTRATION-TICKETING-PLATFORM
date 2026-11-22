@@ -266,7 +266,7 @@ export default function App() {
         date: event.event_date,
         venue: event.venue,
         price: Number(event.ticket_price || 0),
-        payment_status: "Pending"
+        payment_status: Number(event.ticket_price || 0) <= 0 ? "Paid" : "Pending"
       });
 
       formElement.reset();
@@ -468,7 +468,9 @@ export default function App() {
             </form>
 
             <p className="fine-print">
-              Your registration will be saved with payment status marked as Pending.
+              {Number(selectedEvent.ticket_price || 0) <= 0
+                ? "This is a free event. Your ticket will be confirmed without payment."
+                : "Your ticket will be created with Pending payment status. You can complete the demo payment on the next screen."}
             </p>
           </section>
         </div>
@@ -495,7 +497,7 @@ export default function App() {
               <p className="muted">
                 {Number(ticket.price || 0) <= 0
                   ? "This is a free event. No payment is required."
-                  : `Ticket amount: ₹${Number(ticket.price).toLocaleString("en-IN")}. This is a project demo; no real money is charged..`}
+                  : `Ticket amount: ₹${Number(ticket.price).toLocaleString("en-IN")}. This is a project demo; no real money is charged.`}
               </p>
             </div>
             {Number(ticket.price || 0) <= 0 ? (
@@ -1522,8 +1524,8 @@ function ReportsPage({ events, registrations }) {
         r.created_at ? new Date(r.created_at).toLocaleString("en-IN") : ""
       ];
     });
-    const csv = [columns, ...rows].map((row) => row.map(safeCell).join(",")).join("\\r\\n");
-    const blob = new Blob(["\\uFEFF", csv], { type: "text/csv;charset=utf-8;" });
+    const csv = [columns, ...rows].map((row) => row.map(safeCell).join(",")).join("\r\n");
+    const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
