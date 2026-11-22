@@ -5,7 +5,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { Html5QrcodeScanner } from "html5-qrcode";
 import {
   CalendarDays, Ticket, Users, LayoutDashboard, LogOut, Plus,
-  Trash2, CheckCircle, ArrowRight, MapPin, Sparkles,
+  Trash2, Pencil, CheckCircle, ArrowRight, MapPin, Sparkles,
   Menu, X, ShieldCheck, Search, ChevronRight, QrCode, BarChart3
 } from "lucide-react";
 import "./App.css";
@@ -30,6 +30,7 @@ export default function App() {
   const [password, setPassword] = useState("");
   const [search, setSearch] = useState("");
   const [showEventForm, setShowEventForm] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -180,6 +181,43 @@ export default function App() {
 
     await loadAdminData();
     setMessage("Event deleted successfully.");
+  }
+
+  async function updateEvent(e) {
+    e.preventDefault();
+    if (!editingEvent) return;
+
+    setBusy(true);
+    setMessage("");
+    const form = new FormData(e.currentTarget);
+
+    const { data: updatedRows, error } = await supabase
+      .from("events")
+      .update({
+        name: String(form.get("name")).trim(),
+        event_date: form.get("date"),
+        venue: String(form.get("venue")).trim(),
+        ticket_price: Number(form.get("price"))
+      })
+      .eq("id", editingEvent.id)
+      .select("id");
+
+    setBusy(false);
+
+    if (error) {
+      setMessage("Could not update event: " + error.message);
+      return;
+    }
+
+    if (!updatedRows || updatedRows.length === 0) {
+      setMessage("Event was not updated. Check the Supabase UPDATE policy for the events table.");
+      return;
+    }
+
+    setEditingEvent(null);
+    setShowEventForm(false);
+    await loadAdminData();
+    setMessage("Event updated successfully.");
   }
 
   // Student registration through Express backend API
@@ -671,6 +709,11 @@ export default function App() {
             <EventTable
               events={events.slice(0, 5)}
               onDelete={deleteEvent}
+              onEdit={(event) => {
+                setEditingEvent(event);
+                setShowEventForm(true);
+                setPage("events-admin");
+              }}
             />
           </section>
         </AdminLayout>
@@ -694,7 +737,10 @@ export default function App() {
 
             <button
               className="btn btn-primary"
-              onClick={() => setShowEventForm(!showEventForm)}
+              onClick={() => {
+                setEditingEvent(null);
+                setShowEventForm(!showEventForm);
+              }}
             >
               <Plus size={17} /> Add event
             </button>
@@ -702,13 +748,18 @@ export default function App() {
 
           {showEventForm && (
             <form
+              key={editingEvent?.id || "new-event"}
               className="event-form admin-panel"
-              onSubmit={addEvent}
+              onSubmit={editingEvent ? updateEvent : addEvent}
             >
+              <h2 className="event-form-title">
+                {editingEvent ? "Edit event" : "Create a new event"}
+              </h2>
               <label>
                 Event name
                 <input
                   name="name"
+                  defaultValue={editingEvent?.name || ""}
                   placeholder="e.g. Annual Tech Fest"
                   required
                 />
@@ -716,13 +767,19 @@ export default function App() {
 
               <label>
                 Date
-                <input name="date" type="date" required />
+                <input
+                  name="date"
+                  type="date"
+                  defaultValue={editingEvent?.event_date || ""}
+                  required
+                />
               </label>
 
               <label>
                 Venue
                 <input
                   name="venue"
+                  defaultValue={editingEvent?.venue || ""}
                   placeholder="College auditorium"
                   required
                 />
@@ -734,22 +791,40 @@ export default function App() {
                   name="price"
                   type="number"
                   min="0"
+                  defaultValue={editingEvent?.ticket_price ?? ""}
                   placeholder="0"
                   required
                 />
               </label>
 
-              <button
-                className="btn btn-primary"
-                disabled={busy}
-              >
-                {busy ? "Saving…" : "Save event"}
-              </button>
+              <div className="event-form-actions">
+                <button className="btn btn-primary" disabled={busy}>
+                  {busy ? "Saving…" : editingEvent ? "Save changes" : "Save event"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={busy}
+                  onClick={() => {
+                    setShowEventForm(false);
+                    setEditingEvent(null);
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
             </form>
           )}
 
           <section className="admin-panel">
-            <EventTable events={events} onDelete={deleteEvent} />
+            <EventTable
+              events={events}
+              onDelete={deleteEvent}
+              onEdit={(event) => {
+                setEditingEvent(event);
+                setShowEventForm(true);
+              }}
+            />
           </section>
         </AdminLayout>
       )}
@@ -1272,7 +1347,7 @@ function StatCard({ title, value, icon }) {
   );
 }
 
-function EventTable({ events, onDelete }) {
+function EventTable({ events, onDelete, onEdit }) {
   return (
     <div className="table-scroll">
       <table className="data-table">
@@ -1282,7 +1357,7 @@ function EventTable({ events, onDelete }) {
             <th>Date</th>
             <th>Venue</th>
             <th>Ticket price</th>
-            <th />
+            <th>Actions</th>
           </tr>
         </thead>
 
@@ -1294,13 +1369,22 @@ function EventTable({ events, onDelete }) {
               <td>{event.venue}</td>
               <td>₹{event.ticket_price}</td>
               <td>
-                <button
-                  className="icon-button danger"
-                  onClick={() => onDelete(event.id)}
-                  aria-label="Delete event"
-                >
-                  <Trash2 size={17} />
-                </button>
+                <div className="event-row-actions">
+                  <button
+                    className="btn btn-small btn-ghost"
+                    onClick={() => onEdit(event)}
+                    aria-label="Edit event"
+                  >
+                    <Pencil size={14} /> Edit
+                  </button>
+                  <button
+                    className="icon-button danger"
+                    onClick={() => onDelete(event.id)}
+                    aria-label="Delete event"
+                  >
+                    <Trash2 size={17} />
+                  </button>
+                </div>
               </td>
             </tr>
           ))}
