@@ -1,0 +1,175 @@
+# EventHub – Event Registration & Ticketing Platform
+
+## 1. Project Introduction
+
+EventHub is a web-based Event Registration and Ticketing Platform developed to make event management easier for students and administrators.
+
+Students can explore upcoming events, register online and receive a digital ticket with a QR code. Administrators can manage events, view registrations and update payment and attendance status.
+
+## 2. Technologies Used
+
+- **Frontend:** React.js
+- **Build Tool:** Vite
+- **Programming Language:** JavaScript
+- **Styling:** CSS
+- **Backend & Database:** Supabase
+- **Authentication:** Supabase Authentication
+- **Deployment:** GitHub Pages
+- **QR Code:** qrcode.react
+
+## 3. Main Features
+
+### Student Features
+1. View upcoming events.
+2. Check event date, venue and ticket price.
+3. Register for an event.
+4. Receive a digital ticket.
+5. View a QR code on the ticket.
+6. Print the ticket.
+
+### Admin Features
+1. Admin login.
+2. Admin dashboard.
+3. Add and manage events.
+4. View student registrations.
+5. Search registrations by name, email or ticket ID.
+6. Update payment status.
+7. Update attendance status.
+8. Delete registrations.
+
+## 4. Database
+
+The project uses Supabase with two main tables:
+
+**Events**
+- id
+- name
+- event_date
+- venue
+- ticket_price
+
+**Registrations**
+- id
+- event_id
+- student_name
+- email
+- phone
+- ticket_code
+- payment_status
+- attendance_status
+- created_at
+
+Row Level Security (RLS) is enabled to control database access.
+
+## 5. How the Project Works
+
+1. The student opens the public website.
+2. The student selects an event.
+3. The student enters registration details.
+4. The registration is saved in Supabase.
+5. A unique ticket ID is generated.
+6. A QR code is displayed on the digital ticket.
+7. The administrator views the registration in the dashboard.
+8. The administrator updates payment and attendance status.
+
+## 6. Project Deployment
+
+The frontend is deployed using GitHub Pages, while Supabase provides the backend database and authentication.
+
+**Live Project:**  
+https://sarwanmuskan624-bit.github.io/EVENT-REGISTRATION-TICKETING-PLATFORM/
+
+**GitHub Repository:**  
+https://github.com/sarwanmuskan624-bit/EVENT-REGISTRATION-TICKETING-PLATFORM
+
+## 7. Testing Performed
+
+- Event listing successfully loaded.
+- Student registration successfully saved.
+- Digital ticket and QR code generated.
+- Registration appeared in the admin dashboard.
+- Payment status update saved after refresh.
+- Attendance status update saved after refresh.
+
+## 8. Challenges Faced
+
+During development, I faced some challenges:
+
+- Connecting React with Supabase.
+- Configuring database tables and columns.
+- Handling Row Level Security policies.
+- Fixing registration errors.
+- Deploying the application using GitHub Pages.
+
+I solved these problems through testing, debugging and database configuration.
+
+## 9. Future Improvements
+
+- Online payment gateway integration.
+- QR code scanning and ticket verification.
+- Email confirmation after registration.
+- Event capacity management.
+- Downloadable ticket PDF.
+- Advanced analytics and reports.
+
+## 10. Conclusion
+
+EventHub helped me understand frontend development, database integration, authentication, CRUD operations, debugging and deployment.
+
+This project improved my practical knowledge of building and deploying a full-stack web application.
+
+---
+
+# Internship Presentation – Speaking Script
+
+"Good morning everyone.
+
+My project name is EventHub – Event Registration and Ticketing Platform.
+
+The main purpose of this project is to make event registration and management easier.
+
+I developed the frontend using React.js and JavaScript, and I used Supabase for database management and authentication.
+
+Students can view upcoming events, register for an event and receive a digital ticket with a QR code.
+
+The admin can add events, view student registrations and manage payment and attendance status.
+
+I also deployed my project using GitHub Pages.
+
+While developing this project, I learned how to connect a frontend application with a backend database, manage authentication, handle errors and deploy a website.
+
+Thank you."
+
+# Important Interview Questions
+
+**Q1. What is React.js?**
+
+React.js is a JavaScript library used to build user interfaces.
+
+**Q2. What is Supabase?**
+
+Supabase is a backend platform that provides database, authentication and other backend services.
+
+**Q3. What is CRUD?**
+
+CRUD stands for Create, Read, Update and Delete.
+
+**Q4. Why did you use Supabase?**
+
+I used Supabase to store event and registration data and manage admin authentication.
+
+**Q5. What is RLS?**
+
+RLS stands for Row Level Security. It controls which users can access or modify database records.
+
+**Q6. How is the QR code generated?**
+
+I used the qrcode.react library to generate a QR code using the unique ticket ID.
+
+**Q7. Where is your project deployed?**
+
+My frontend is deployed on GitHub Pages and the backend database is managed through Supabase.
+
+**Q8. What did you learn from this project?**
+
+I learned React, JavaScript, Supabase integration, database management, authentication, debugging and deployment.

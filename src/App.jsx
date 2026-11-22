@@ -1719,5 +1719,5 @@ function QRScanner({ onValidated }) {
         Scan Another Ticket
       </button>
     </div>
-  );
+  )
 }
