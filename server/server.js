@@ -1,15 +1,28 @@
-
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import { randomBytes } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 
 dotenv.config();
 
 const app = express();
+const PORT = process.env.PORT || 5000;
 
-app.use(cors());
-app.use(express.json());
+const allowedOrigins = new Set([
+  "https://sarwanmuskan624-bit.github.io",
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175"
+]);
+
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.has(origin)) return callback(null, true);
+    return callback(new Error("This website is not allowed to access the EventHub API."));
+  }
+}));
+app.use(express.json({ limit: "20kb" }));
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SECRET_KEY;
@@ -26,15 +39,18 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
   }
 });
 
-// Home route
-app.get("/", (req, res) => {
+app.get("/", (_req, res) => {
   res.json({
-    message: "EventHub Backend API is running!"
+    message: "EventHub Backend API is running!",
+    status: "healthy"
   });
 });
 
-// Get all events
-app.get("/api/events", async (req, res) => {
+app.get("/api/health", (_req, res) => {
+  res.json({ success: true, service: "EventHub API" });
+});
+
+app.get("/api/events", async (_req, res) => {
   try {
     const { data, error } = await supabase
       .from("events")
@@ -43,242 +59,227 @@ app.get("/api/events", async (req, res) => {
 
     if (error) {
       console.error("EVENTS ERROR:", error.message);
-      return res.status(500).json({ error: error.message });
+      return res.status(500).json({ error: "Unable to load events right now." });
     }
 
-    res.json(data);
+    return res.json(data || []);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("EVENTS ERROR:", error);
+    return res.status(500).json({ error: "Unable to load events right now." });
   }
 });
 
-// Student registration
 app.post("/api/registrations", async (req, res) => {
   try {
-    const {
-      event_id,
-      student_name,
-      email,
-      phone
-    } = req.body;
+    const eventId = Number(req.body?.event_id);
+    const studentName = String(req.body?.student_name || "").trim();
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    const phone = String(req.body?.phone || "").replace(/[^0-9+]/g, "");
 
-    if (!event_id || !student_name || !email || !phone) {
-      return res.status(400).json({
-        error: "All registration fields are required"
+    if (!Number.isSafeInteger(eventId) || eventId <= 0) {
+      return res.status(400).json({ error: "Please select a valid event." });
+    }
+    if (studentName.length < 2 || studentName.length > 100) {
+      return res.status(400).json({ error: "Please enter a name between 2 and 100 characters." });
+    }
+    if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: "Please enter a valid email address." });
+    }
+    if (phone.replace(/\D/g, "").length < 10 || phone.replace(/\D/g, "").length > 15) {
+      return res.status(400).json({ error: "Please enter a valid phone number." });
+    }
+
+    const { data: event, error: eventError } = await supabase
+      .from("events")
+      .select("id, name, event_date")
+      .eq("id", eventId)
+      .maybeSingle();
+
+    if (eventError) {
+      console.error("EVENT LOOKUP ERROR:", eventError.message);
+      return res.status(500).json({ error: "Could not verify the selected event." });
+    }
+    if (!event) {
+      return res.status(404).json({ error: "The selected event no longer exists." });
+    }
+    if (event.event_date) {
+      const eventDate = new Date(`${event.event_date}T23:59:59`);
+      if (!Number.isNaN(eventDate.getTime()) && eventDate < new Date()) {
+        return res.status(400).json({ error: "Registration for this event has closed." });
+      }
+    }
+
+    const { data: existingRegistration, error: duplicateError } = await supabase
+      .from("registrations")
+      .select("id")
+      .eq("event_id", eventId)
+      .ilike("email", email)
+      .limit(1)
+      .maybeSingle();
+
+    if (duplicateError) {
+      console.error("DUPLICATE CHECK ERROR:", duplicateError.message);
+      return res.status(500).json({ error: "Could not verify your registration. Please try again." });
+    }
+    if (existingRegistration) {
+      return res.status(409).json({
+        error: "This email is already registered for this event. Please use your existing ticket."
       });
     }
 
-    const ticket_code = `TKT-${Date.now()}`;
-
-    const { error } = await supabase
+    const ticket_code = `EHT-${randomBytes(5).toString("hex").toUpperCase()}`;
+    const { error: insertError } = await supabase
       .from("registrations")
       .insert([{
-        event_id: Number(event_id),
-        student_name: String(student_name).trim(),
-        email: String(email).trim(),
-        phone: String(phone).trim(),
+        event_id: eventId,
+        student_name: studentName,
+        email,
+        phone,
         ticket_code,
         payment_status: "Pending",
         attendance_status: "Absent"
       }]);
 
-    if (error) {
-      console.error("REGISTRATION ERROR:", error.message);
-      return res.status(500).json({
-        error: error.message
-      });
+    if (insertError) {
+      console.error("REGISTRATION ERROR:", insertError.message);
+      if (insertError.code === "23505") {
+        return res.status(409).json({ error: "A registration already exists for this event and email." });
+      }
+      return res.status(500).json({ error: "Registration could not be saved. Please try again." });
     }
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "Registration successful",
       ticket_code
     });
-
   } catch (error) {
-    res.status(500).json({
-      error: error.message
-    });
+    console.error("REGISTRATION ERROR:", error);
+    return res.status(500).json({ error: "Registration could not be completed. Please try again." });
   }
 });
 
-// Simulated Payment API
+// Demonstration only. This endpoint does not process real money.
 app.post("/api/simulate-payment", async (req, res) => {
   try {
-    const { ticket_code, payment_result } = req.body;
+    const ticketCode = String(req.body?.ticket_code || "").trim();
+    const paymentResult = req.body?.payment_result;
 
-    if (!ticket_code || !payment_result) {
-      return res.status(400).json({
-        success: false,
-        message: "Ticket code and payment result are required"
-      });
+    if (!ticketCode || !paymentResult) {
+      return res.status(400).json({ success: false, message: "Ticket code and payment result are required." });
+    }
+    if (!["success", "failed"].includes(paymentResult)) {
+      return res.status(400).json({ success: false, message: "Invalid payment result." });
     }
 
-    if (!["success", "failed"].includes(payment_result)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid payment result"
-      });
-    }
-
-    // Find registration
-    const { data: registration, error: findError } =
-      await supabase
-        .from("registrations")
-        .select("*")
-        .eq("ticket_code", String(ticket_code).trim())
-        .maybeSingle();
+    const { data: registration, error: findError } = await supabase
+      .from("registrations")
+      .select("*")
+      .eq("ticket_code", ticketCode)
+      .maybeSingle();
 
     if (findError) {
-      return res.status(500).json({
-        success: false,
-        message: findError.message
-      });
+      return res.status(500).json({ success: false, message: "Could not find the registration." });
     }
-
     if (!registration) {
-      return res.status(404).json({
-        success: false,
-        message: "Registration not found"
-      });
+      return res.status(404).json({ success: false, message: "Registration not found." });
     }
-
     if (registration.payment_status === "Paid") {
-      return res.status(409).json({
-        success: false,
-        message: "Payment has already been completed"
-      });
+      return res.status(409).json({ success: false, message: "Payment has already been completed." });
     }
 
-    const newStatus =
-      payment_result === "success" ? "Paid" : "Pending";
-
-    const { data: updatedRegistration, error: updateError } =
-      await supabase
-        .from("registrations")
-        .update({
-          payment_status: newStatus
-        })
-        .eq("ticket_code", String(ticket_code).trim())
-        .eq("payment_status", "Pending")
-        .select()
-        .maybeSingle();
+    const newStatus = paymentResult === "success" ? "Paid" : "Pending";
+    const { data: updatedRegistration, error: updateError } = await supabase
+      .from("registrations")
+      .update({ payment_status: newStatus })
+      .eq("ticket_code", ticketCode)
+      .eq("payment_status", "Pending")
+      .select()
+      .maybeSingle();
 
     if (updateError) {
-      return res.status(500).json({
-        success: false,
-        message: updateError.message
-      });
+      return res.status(500).json({ success: false, message: "Could not update the payment status." });
     }
-
     if (!updatedRegistration) {
-      return res.status(409).json({
-        success: false,
-        message: "Payment status could not be updated"
-      });
+      return res.status(409).json({ success: false, message: "Payment status could not be updated." });
     }
 
-    res.json({
-      success: payment_result === "success",
-      message:
-        payment_result === "success"
-          ? "Simulated payment successful"
-          : "Simulated payment failed",
+    return res.json({
+      success: paymentResult === "success",
+      message: paymentResult === "success" ? "Demo payment successful." : "Demo payment failed.",
       payment_status: newStatus,
       registration: updatedRegistration
     });
-
   } catch (error) {
     console.error("PAYMENT ERROR:", error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    return res.status(500).json({ success: false, message: "Payment simulation failed." });
   }
 });
 
-// QR Ticket Validation
 app.post("/api/validate-ticket", async (req, res) => {
   try {
-    const { ticket_code } = req.body;
-
-    if (!ticket_code) {
-      return res.status(400).json({
-        success: false,
-        message: "Ticket code is required"
-      });
+    const ticketCode = String(req.body?.ticket_code || "").trim();
+    if (!ticketCode) {
+      return res.status(400).json({ success: false, message: "Ticket code is required." });
     }
 
     const { data: ticket, error } = await supabase
       .from("registrations")
-      .select("*")
-      .eq("ticket_code", String(ticket_code).trim())
+      .select("id, student_name, email, event_id, ticket_code, payment_status, attendance_status")
+      .eq("ticket_code", ticketCode)
       .maybeSingle();
 
     if (error) {
-      return res.status(500).json({
-        success: false,
-        message: error.message
-      });
+      return res.status(500).json({ success: false, message: "Could not verify this ticket." });
     }
-
     if (!ticket) {
-      return res.status(404).json({
-        success: false,
-        message: "Invalid ticket"
-      });
+      return res.status(404).json({ success: false, message: "Invalid ticket." });
     }
-
     if (ticket.attendance_status === "Present") {
       return res.status(409).json({
         success: false,
-        message: "Ticket already used",
+        message: "Ticket already used. This attendee has already checked in.",
         attendee: ticket
       });
     }
 
-    const { data: updatedTicket, error: updateError } =
-      await supabase
-        .from("registrations")
-        .update({
-          attendance_status: "Present"
-        })
-        .eq("ticket_code", String(ticket_code).trim())
-        .eq("attendance_status", "Absent")
-        .select()
-        .maybeSingle();
+    const { data: updatedTicket, error: updateError } = await supabase
+      .from("registrations")
+      .update({ attendance_status: "Present" })
+      .eq("id", ticket.id)
+      .neq("attendance_status", "Present")
+      .select("id, student_name, email, event_id, ticket_code, payment_status, attendance_status")
+      .maybeSingle();
 
     if (updateError) {
-      return res.status(500).json({
-        success: false,
-        message: updateError.message
-      });
+      return res.status(500).json({ success: false, message: "Could not save the check-in." });
     }
-
     if (!updatedTicket) {
       return res.status(409).json({
         success: false,
-        message: "Ticket already used"
+        message: "Ticket already used. This attendee has already checked in.",
+        attendee: ticket
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
-      message: "Ticket verified successfully",
+      message: "Ticket verified successfully. Attendee checked in.",
       attendee: updatedTicket
     });
-
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    console.error("TICKET VALIDATION ERROR:", error);
+    return res.status(500).json({ success: false, message: "Ticket validation failed." });
   }
 });
 
-// Start server
-const PORT = process.env.PORT || 5000;
+app.use((error, _req, res, _next) => {
+  if (error?.message?.includes("not allowed to access")) {
+    return res.status(403).json({ error: error.message });
+  }
+  console.error("API ERROR:", error);
+  return res.status(500).json({ error: "Unexpected server error." });
+});
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`EventHub API running on port ${PORT}`);
+  console.log(`EventHub Backend API running on port ${PORT}`);
 });
