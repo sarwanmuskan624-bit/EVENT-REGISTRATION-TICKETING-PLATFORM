@@ -75,7 +75,6 @@ app.post("/api/registrations", async (req, res) => {
       .insert([{
         event_id: Number(event_id),
         student_name: String(student_name).trim(),
-        full_name: String(student_name).trim(),
         email: String(email).trim(),
         phone: String(phone).trim(),
         ticket_code,
