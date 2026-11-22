@@ -1,5 +1,6 @@
 name: Deploy EventHub to GitHub Pages
 
+# Public frontend configuration is injected from repository Actions secrets at build time.
 on:
   push:
     branches:
