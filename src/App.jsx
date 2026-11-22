@@ -505,7 +505,7 @@ export default function App() {
             ) : (
               <div className="payment-demo-actions">
                 <button className="btn btn-primary" disabled={paymentBusy} onClick={completeDemoPayment}>
-                  {paymentBusy ? "Opening secure checkout…" : "Complete demo payment"}
+                  {paymentBusy ? "Processing demo payment…" : "Complete demo payment"}
                 </button>
               </div>
             )}
