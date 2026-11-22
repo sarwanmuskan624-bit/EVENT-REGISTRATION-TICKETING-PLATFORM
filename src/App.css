@@ -51,3 +51,9 @@
 .payment-success{display:flex;align-items:center;gap:8px;color:#70e0ad;font-size:13px;font-weight:700}
 .payment-result{margin:14px 0 0;padding:10px 12px;border-radius:8px;background:#ffffff0c;color:#d8cafa;font-size:11px;line-height:1.6}
 @media(max-width:600px){.payment-demo-panel{margin:18px 0;padding:17px}.payment-demo-actions{flex-direction:column}.payment-demo-actions .btn{width:100%}}
+
+
+/* Event management edit controls */
+.event-row-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.event-form-title{grid-column:1/-1;font:600 19px 'Space Grotesk';margin:0 0 2px}
+.event-form-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
