@@ -6,7 +6,7 @@ import { Html5QrcodeScanner } from "html5-qrcode";
 import {
   CalendarDays, Ticket, Users, LayoutDashboard, LogOut, Plus,
   Trash2, Pencil, CheckCircle, ArrowRight, MapPin, Sparkles,
-  Menu, X, ShieldCheck, Search, ChevronRight, QrCode, BarChart3
+  Menu, X, ShieldCheck, Search, ChevronRight, QrCode, BarChart3, Download
 } from "lucide-react";
 import "./App.css";
 
@@ -1541,6 +1541,41 @@ function ReportsPage({ events, registrations }) {
     };
   });
 
+  function exportRegistrations() {
+    const columns = [
+      "Event", "Student Name", "Email", "Phone", "Ticket ID",
+      "Payment Status", "Attendance Status", "Registration Date"
+    ];
+    const safeCell = (value) => {
+      let text = String(value ?? "");
+      if (/^[=+@\\-]/.test(text)) text = "'" + text;
+      return '"' + text.replace(/"/g, '""') + '"';
+    };
+    const rows = registrations.map((r) => {
+      const event = events.find((item) => String(item.id) === String(r.event_id));
+      return [
+        event?.name || "Event",
+        r.student_name,
+        r.email,
+        r.phone,
+        r.ticket_code,
+        r.payment_status || "Pending",
+        r.attendance_status || "Absent",
+        r.created_at ? new Date(r.created_at).toLocaleString("en-IN") : ""
+      ];
+    });
+    const csv = [columns, ...rows].map((row) => row.map(safeCell).join(",")).join("\\r\\n");
+    const blob = new Blob(["\\uFEFF", csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "eventhub-registrations.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="reports-page">
       <div className="section-heading admin-page-heading">
@@ -1551,6 +1586,13 @@ function ReportsPage({ events, registrations }) {
             A summary of events, registrations, payments and attendance.
           </p>
         </div>
+        <button
+          className="btn btn-primary"
+          onClick={exportRegistrations}
+          disabled={registrations.length === 0}
+        >
+          <Download size={16} /> Export registrations CSV
+        </button>
       </div>
 
       <div className="stats-grid reports-stats">
@@ -1706,6 +1748,32 @@ function QRScanner({ onValidated }) {
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [ticketCode, setTicketCode] = useState("");
+
+  async function validateTicketCode(code) {
+    const normalizedCode = String(code || "").trim();
+    if (!normalizedCode) {
+      setError("Please enter a Ticket ID or scan its QR code.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    setResult(null);
+    try {
+      const response = await fetch(`${API_URL}/api/validate-ticket`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticket_code: normalizedCode })
+      });
+      const data = await response.json();
+      setResult({ ...data, status: response.status });
+      if (response.ok && onValidated) onValidated();
+    } catch (err) {
+      setError(err.message || "Ticket validation failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
     const scanner = new Html5QrcodeScanner(
@@ -1728,29 +1796,7 @@ function QRScanner({ onValidated }) {
         try {
           await scanner.clear();
 
-          const response = await fetch(
-            `${API_URL}/api/validate-ticket`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify({
-                ticket_code: decodedText
-              })
-            }
-          );
-
-          const data = await response.json();
-
-          setResult({
-            ...data,
-            status: response.status
-          });
-
-          if (response.ok && onValidated) {
-            onValidated();
-          }
+          await validateTicketCode(decodedText);
         } catch (err) {
           setError(err.message || "Ticket validation failed");
         } finally {
@@ -1774,6 +1820,25 @@ function QRScanner({ onValidated }) {
         id={`eventhub-qr-reader-${scanKey}`}
         style={{ maxWidth: "500px" }}
       />
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          validateTicketCode(ticketCode);
+        }}
+        style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "16px" }}
+      >
+        <input
+          value={ticketCode}
+          onChange={(e) => setTicketCode(e.target.value)}
+          placeholder="Or enter Ticket ID manually"
+          aria-label="Ticket ID"
+          style={{ flex: "1 1 220px", minWidth: 0, padding: "12px", borderRadius: "8px" }}
+        />
+        <button className="btn btn-primary" type="submit" disabled={loading}>
+          Verify Ticket
+        </button>
+      </form>
 
       {loading && <p>Verifying ticket...</p>}
 
@@ -1807,6 +1872,7 @@ function QRScanner({ onValidated }) {
         onClick={() => {
           setResult(null);
           setError("");
+          setTicketCode("");
           setScanKey((key) => key + 1);
         }}
       >
