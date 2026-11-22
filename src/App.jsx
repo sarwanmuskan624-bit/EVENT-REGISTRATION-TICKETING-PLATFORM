@@ -2,14 +2,15 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabaseClient";
 import { QRCodeSVG } from "qrcode.react";
+import { Html5QrcodeScanner } from "html5-qrcode";
 import {
   CalendarDays, Ticket, Users, LayoutDashboard, LogOut, Plus,
   Trash2, CheckCircle, ArrowRight, MapPin, Sparkles,
-  Menu, X, ShieldCheck, Search, ChevronRight
+  Menu, X, ShieldCheck, Search, ChevronRight, QrCode, BarChart3
 } from "lucide-react";
 import "./App.css";
 
-const API_URL = "http://localhost:5000";
+const API_URL = "https://event-registration-ticketing-platform.onrender.com";
 
 const formatDate = (value) => {
   if (!value) return "Date to be announced";
@@ -33,6 +34,8 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [paymentBusy, setPaymentBusy] = useState(false);
+  const [paymentResult, setPaymentResult] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -213,7 +216,9 @@ export default function App() {
         email: studentEmail,
         event: event.name,
         date: event.event_date,
-        venue: event.venue
+        venue: event.venue,
+        price: Number(event.ticket_price || 0),
+        payment_status: "Pending"
       });
 
       formElement.reset();
@@ -230,6 +235,64 @@ export default function App() {
       setBusy(false);
     }
   }
+
+  // Demo-only payment simulation. This does not charge real money.
+  
+  // Demo-only payment simulation. This does not charge real money.
+  async function simulatePayment(outcome) {
+    if (!ticket?.id) return;
+
+    setPaymentBusy(true);
+    setPaymentResult("");
+
+    try {
+      const response = await fetch(`${API_URL}/api/simulate-payment`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          ticket_code: ticket.id,
+          payment_result: outcome === "success" ? "success" : "failed"
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result.error || result.message || "Payment simulation failed."
+        );
+      }
+
+      const updatedStatus =
+        result.payment_status ||
+        (outcome === "success" ? "Paid" : "Pending");
+
+      setTicket((current) => ({
+        ...current,
+        payment_status: updatedStatus
+      }));
+
+      if (updatedStatus === "Paid") {
+        setPaymentResult(
+          "Demo payment successful. Registration payment status is now Paid."
+        );
+      } else {
+        setPaymentResult(
+          "Demo payment failed. Payment status remains Pending."
+        );
+      }
+
+      if (session) await loadAdminData();
+
+    } catch (error) {
+      setPaymentResult(error.message);
+    } finally {
+      setPaymentBusy(false);
+    }
+  }
+
 
   async function updateRegistration(id, field, value) {
     const column =
@@ -276,6 +339,8 @@ export default function App() {
       {page !== "dashboard" &&
         page !== "events-admin" &&
         page !== "registrations-admin" &&
+        page !== "scanner-admin" &&
+        page !== "reports-admin" &&
         page !== "login" && (
           <PublicHeader
             onHome={() => {
@@ -409,6 +474,37 @@ export default function App() {
           </p>
 
           <TicketCard ticket={ticket} />
+
+          <section className="payment-demo-panel">
+            <div>
+              <span className="eyebrow">DEMO PAYMENT</span>
+              <h2>Payment status: {ticket.payment_status || "Pending"}</h2>
+              <p className="muted">
+                Amount: ₹{Number(ticket.price || 0).toLocaleString("en-IN")}. This is a simulated payment only; no real money is charged.
+              </p>
+            </div>
+            {ticket.payment_status === "Paid" ? (
+              <p className="payment-success"><CheckCircle size={17} /> Payment marked as Paid</p>
+            ) : (
+              <div className="payment-demo-actions">
+                <button
+                  className="btn btn-primary"
+                  disabled={paymentBusy}
+                  onClick={() => simulatePayment("success")}
+                >
+                  {paymentBusy ? "Processing…" : "Simulate successful payment"}
+                </button>
+                <button
+                  className="btn btn-ghost"
+                  disabled={paymentBusy}
+                  onClick={() => simulatePayment("failure")}
+                >
+                  Simulate failed payment
+                </button>
+              </div>
+            )}
+            {paymentResult && <p className="payment-result" role="status">{paymentResult}</p>}
+          </section>
 
           <div className="ticket-actions">
             <button
@@ -684,7 +780,7 @@ export default function App() {
                     <th>Ticket ID</th>
                     <th>Payment</th>
                     <th>Attendance</th>
-                    <th />
+                    <th>Actions</th>
                   </tr>
                 </thead>
 
@@ -737,13 +833,40 @@ export default function App() {
                       </td>
 
                       <td>
-                        <button
-                          className="icon-button danger"
-                          onClick={() => deleteRegistration(r.id)}
-                          aria-label="Delete registration"
-                        >
-                          <Trash2 size={17} />
-                        </button>
+                        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                          <button
+                            className="btn btn-small btn-primary"
+                            onClick={() => {
+                              const event = events.find(
+                                (ev) => String(ev.id) === String(r.event_id)
+                              );
+
+                              setTicket({
+                                id: r.ticket_code,
+                                name: r.student_name,
+                                email: r.email,
+                                event: event?.name || "Event",
+                                date: event?.event_date || "",
+                                venue: event?.venue || "Venue not available",
+                                price: Number(event?.ticket_price || 0),
+                                payment_status: r.payment_status || "Pending"
+                              });
+
+                              setPage("ticket");
+                            }}
+                          >
+                            <Ticket size={15} />
+                            View Ticket
+                          </button>
+
+                          <button
+                            className="icon-button danger"
+                            onClick={() => deleteRegistration(r.id)}
+                            aria-label="Delete registration"
+                          >
+                            <Trash2 size={17} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -757,6 +880,28 @@ export default function App() {
           </section>
         </AdminLayout>
       )}
+      {page === "reports-admin" && session && (
+        <AdminLayout
+          pageTitle="Reports & Analytics"
+          session={session}
+          onNavigate={setPage}
+          onLogout={logout}
+        >
+          <ReportsPage events={events} registrations={registrations} />
+        </AdminLayout>
+      )}
+
+      {page === "scanner-admin" && session && (
+        <AdminLayout
+          pageTitle="QR Ticket Scanner"
+          session={session}
+          onNavigate={setPage}
+          onLogout={logout}
+        >
+          <QRScanner onValidated={loadAdminData} />
+        </AdminLayout>
+      )}
+
     </div>
   );
 }
@@ -1026,11 +1171,14 @@ function HomePage({ events, onRegister }) {
 }
 
 function AdminLayout({ pageTitle, children, onNavigate, onLogout }) {
-  const items = [
-    ["dashboard", "Overview", LayoutDashboard],
-    ["events-admin", "Events", CalendarDays],
-    ["registrations-admin", "Registrations", Users]
-  ];
+  
+    const items = [
+  ["dashboard", "Overview", LayoutDashboard],
+  ["events-admin", "Events", CalendarDays],
+  ["registrations-admin", "Registrations", Users],
+  ["reports-admin", "Reports", BarChart3],
+  ["scanner-admin", "QR Scanner", QrCode]
+];
 
   return (
     <div className="admin-shell">
@@ -1052,7 +1200,9 @@ function AdminLayout({ pageTitle, children, onNavigate, onLogout }) {
               (
                 (pageTitle === "Dashboard" && key === "dashboard") ||
                 (pageTitle === "Manage events" && key === "events-admin") ||
-                (pageTitle === "Registrations" && key === "registrations-admin")
+                (pageTitle === "Registrations" && key === "registrations-admin") ||
+                (pageTitle === "Reports & Analytics" && key === "reports-admin") ||
+                (pageTitle === "QR Ticket Scanner" && key === "scanner-admin")
               ) ? "active" : ""
             }`}
             onClick={() => onNavigate(key)}
@@ -1196,5 +1346,378 @@ function TicketCard({ ticket }) {
         <small>SCAN AT ENTRY</small>
       </div>
     </article>
+  );
+}
+
+function DonutChart({
+  title,
+  subtitle,
+  firstLabel,
+  firstValue,
+  secondLabel,
+  secondValue,
+  firstColor,
+  secondColor
+}) {
+  const total = firstValue + secondValue;
+  const firstPercent = total > 0 ? (firstValue / total) * 100 : 0;
+  const firstDegrees = firstPercent * 3.6;
+  const chartStyle = {
+    background: total > 0
+      ? `conic-gradient(${firstColor} 0deg ${firstDegrees}deg, ${secondColor} ${firstDegrees}deg 360deg)`
+      : "conic-gradient(#454052 0deg 360deg)"
+  };
+
+  return (
+    <section className="admin-panel donut-chart-panel">
+      <div className="chart-heading">
+        <div>
+          <h2>{title}</h2>
+          <p className="muted">{subtitle}</p>
+        </div>
+      </div>
+      <div className="donut-chart-content">
+        <div
+          className="donut-chart"
+          style={chartStyle}
+          role="img"
+          aria-label={`${firstLabel}: ${firstValue}, ${secondLabel}: ${secondValue}`}
+        >
+          <div className="donut-chart-hole">
+            <strong>{total}</strong>
+            <span>Total</span>
+          </div>
+        </div>
+        <div className="chart-legend">
+          <div>
+            <span className="legend-dot" style={{ background: firstColor }} />
+            <span>{firstLabel}</span>
+            <strong>{firstValue}</strong>
+          </div>
+          <div>
+            <span className="legend-dot" style={{ background: secondColor }} />
+            <span>{secondLabel}</span>
+            <strong>{secondValue}</strong>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ReportsPage({ events, registrations }) {
+  const totalRegistrations = registrations.length;
+  const paidCount = registrations.filter(
+    (r) => r.payment_status === "Paid"
+  ).length;
+  const pendingCount = registrations.filter(
+    (r) => (r.payment_status || "Pending") === "Pending"
+  ).length;
+  const presentCount = registrations.filter(
+    (r) => r.attendance_status === "Present"
+  ).length;
+  const absentCount = registrations.filter(
+    (r) => (r.attendance_status || "Absent") === "Absent"
+  ).length;
+
+  // Revenue is estimated from the event's ticket price for registrations
+  // whose payment status is marked Paid in the admin panel.
+  const paidRevenue = registrations.reduce((total, registration) => {
+    if (registration.payment_status !== "Paid") return total;
+    const event = events.find(
+      (item) => String(item.id) === String(registration.event_id)
+    );
+    return total + Number(event?.ticket_price || 0);
+  }, 0);
+
+  const eventReports = events.map((event) => {
+    const eventRegistrations = registrations.filter(
+      (r) => String(r.event_id) === String(event.id)
+    );
+    return {
+      ...event,
+      total: eventRegistrations.length,
+      paid: eventRegistrations.filter((r) => r.payment_status === "Paid").length,
+      present: eventRegistrations.filter(
+        (r) => r.attendance_status === "Present"
+      ).length,
+      absent: eventRegistrations.filter(
+        (r) => (r.attendance_status || "Absent") === "Absent"
+      ).length
+    };
+  });
+
+  return (
+    <div className="reports-page">
+      <div className="section-heading admin-page-heading">
+        <div>
+          <span className="eyebrow">EVENT PERFORMANCE</span>
+          <h1>Reports & Analytics</h1>
+          <p className="muted">
+            A summary of events, registrations, payments and attendance.
+          </p>
+        </div>
+      </div>
+
+      <div className="stats-grid reports-stats">
+        <StatCard
+          title="Total events"
+          value={events.length}
+          icon={<CalendarDays />}
+        />
+        <StatCard
+          title="Total registrations"
+          value={totalRegistrations}
+          icon={<Users />}
+        />
+        <StatCard
+          title="Paid registrations"
+          value={paidCount}
+          icon={<CheckCircle />}
+        />
+        <StatCard
+          title="Pending payments"
+          value={pendingCount}
+          icon={<Ticket />}
+        />
+        <StatCard
+          title="Present attendees"
+          value={presentCount}
+          icon={<CheckCircle />}
+        />
+        <StatCard
+          title="Absent attendees"
+          value={absentCount}
+          icon={<Users />}
+        />
+      </div>
+
+      <section className="admin-panel revenue-panel">
+        <div>
+          <span className="eyebrow">ESTIMATED PAID TICKET VALUE</span>
+          <h2>₹{paidRevenue.toLocaleString("en-IN")}</h2>
+          <p className="muted">
+            Calculated using ticket prices for registrations marked as Paid.
+            This is not a payment-gateway settlement report.
+          </p>
+        </div>
+        <div className="revenue-icon">
+          <BarChart3 size={28} />
+        </div>
+      </section>
+
+      <div className="analytics-chart-grid">
+        <DonutChart
+          title="Payment Status"
+          subtitle="Paid vs pending registrations"
+          firstLabel="Paid"
+          firstValue={paidCount}
+          secondLabel="Pending"
+          secondValue={pendingCount}
+          firstColor="#9b78ff"
+          secondColor="#e879b9"
+        />
+        <DonutChart
+          title="Attendance Report"
+          subtitle="Present vs absent attendees"
+          firstLabel="Present"
+          firstValue={presentCount}
+          secondLabel="Absent"
+          secondValue={absentCount}
+          firstColor="#42c99a"
+          secondColor="#f0a45d"
+        />
+      </div>
+
+      <section className="admin-panel analytics-bar-panel">
+        <div className="section-heading">
+          <div>
+            <span className="eyebrow">REGISTRATION COMPARISON</span>
+            <h2>Event Registrations</h2>
+            <p className="muted">Number of registrations for each event.</p>
+          </div>
+          <BarChart3 size={25} />
+        </div>
+        {eventReports.length ? (
+          <div className="event-bars">
+            {eventReports.map((event) => {
+              const maxRegistrations = Math.max(
+                1,
+                ...eventReports.map((item) => item.total)
+              );
+              const barWidth = (event.total / maxRegistrations) * 100;
+              return (
+                <div className="event-bar-row" key={event.id}>
+                  <div className="event-bar-label" title={event.name}>
+                    {event.name}
+                  </div>
+                  <div className="event-bar-track">
+                    <div
+                      className="event-bar-fill"
+                      style={{ width: `${barWidth}%` }}
+                    />
+                  </div>
+                  <strong>{event.total}</strong>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="empty-state">No event data available to display.</p>
+        )}
+      </section>
+
+      <section className="admin-panel">
+        <div className="section-heading">
+          <div>
+            <span className="eyebrow">EVENT-WISE BREAKDOWN</span>
+            <h2>Event performance</h2>
+          </div>
+        </div>
+
+        <div className="table-scroll">
+          <table className="data-table reports-table">
+            <thead>
+              <tr>
+                <th>Event</th>
+                <th>Registrations</th>
+                <th>Paid</th>
+                <th>Present</th>
+                <th>Absent</th>
+              </tr>
+            </thead>
+            <tbody>
+              {eventReports.map((event) => (
+                <tr key={event.id}>
+                  <td><strong>{event.name}</strong></td>
+                  <td>{event.total}</td>
+                  <td>{event.paid}</td>
+                  <td>{event.present}</td>
+                  <td>{event.absent}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {eventReports.length === 0 && (
+            <p className="empty-state">No event data available yet.</p>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function QRScanner({ onValidated }) {
+  const [scanKey, setScanKey] = useState(0);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const scanner = new Html5QrcodeScanner(
+      `eventhub-qr-reader-${scanKey}`,
+      {
+        fps: 10,
+        qrbox: { width: 250, height: 250 }
+      },
+      false
+    );
+
+    let scanned = false;
+
+    scanner.render(
+      async (decodedText) => {
+        if (scanned) return;
+        scanned = true;
+        setLoading(true);
+
+        try {
+          await scanner.clear();
+
+          const response = await fetch(
+            `${API_URL}/api/validate-ticket`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                ticket_code: decodedText
+              })
+            }
+          );
+
+          const data = await response.json();
+
+          setResult({
+            ...data,
+            status: response.status
+          });
+
+          if (response.ok && onValidated) {
+            onValidated();
+          }
+        } catch (err) {
+          setError(err.message || "Ticket validation failed");
+        } finally {
+          setLoading(false);
+        }
+      },
+      () => {}
+    );
+
+    return () => {
+      scanner.clear().catch(() => {});
+    };
+  }, [scanKey]);
+
+  return (
+    <div className="card" style={{ padding: "24px" }}>
+      <h2>QR Ticket Scanner</h2>
+      <p>Scan the attendee's EventHub ticket QR code.</p>
+
+      <div
+        id={`eventhub-qr-reader-${scanKey}`}
+        style={{ maxWidth: "500px" }}
+      />
+
+      {loading && <p>Verifying ticket...</p>}
+
+      {error && (
+        <p style={{ color: "red" }}>{error}</p>
+      )}
+
+      {result && (
+        <div style={{ marginTop: "20px" }}>
+          <h3>
+            {result.success ? "Ticket Verified!" : "Verification Failed"}
+          </h3>
+          <p>{result.message}</p>
+
+          {result.attendee && (
+            <>
+              <p>
+                Attendee: {result.attendee.student_name}
+              </p>
+              <p>
+                Ticket ID: {result.attendee.ticket_code}
+              </p>
+            </>
+          )}
+        </div>
+      )}
+
+      <button
+        className="btn btn-primary"
+        style={{ marginTop: "20px" }}
+        onClick={() => {
+          setResult(null);
+          setError("");
+          setScanKey((key) => key + 1);
+        }}
+      >
+        Scan Another Ticket
+      </button>
+    </div>
   );
 }
