@@ -162,14 +162,24 @@ export default function App() {
       return;
     }
 
-    const { error } = await supabase.from("events").delete().eq("id", id);
+    const { data: deletedRows, error } = await supabase
+      .from("events")
+      .delete()
+      .eq("id", id)
+      .select("id");
 
     if (error) {
-      setMessage(error.message);
-    } else {
-      await loadAdminData();
-      setMessage("Event deleted.");
+      setMessage(`Could not delete event: ${error.message}`);
+      return;
     }
+
+    if (!deletedRows || deletedRows.length === 0) {
+      setMessage("Event was not deleted. Supabase DELETE permission is missing for this account. Please enable the authenticated admin DELETE policy for the events table.");
+      return;
+    }
+
+    await loadAdminData();
+    setMessage("Event deleted successfully.");
   }
 
   // Student registration through Express backend API
