@@ -8,6 +8,8 @@ EventHub is a student event-registration platform. Visitors can browse events, r
 - Browse events loaded from the Express API.
 - Register with name, email and phone.
 - Receive a ticket with a unique ticket code and QR code.
+- Prevent duplicate registrations for the same event using the same email address.
+- Validate name, email, phone number and event availability before saving a registration.
 - Simulate a successful or failed payment (demo only; no real money is charged).
 - Print the ticket.
 
@@ -18,7 +20,9 @@ EventHub is a student event-registration platform. Visitors can browse events, r
 - Search, update and delete registrations.
 - Payment and attendance status management.
 - Reports for event registrations, payment status, attendance and estimated paid ticket value.
-- QR scanner that validates a ticket and marks it as Present.
+- Export registration records as a CSV spreadsheet.
+- QR scanner that validates a ticket and marks it as Present; manual Ticket ID verification is also available if camera access is unavailable.
+- Reject invalid tickets and prevent a second check-in for an already-used ticket.
 
 ## Technology
 - React 19 + Vite
@@ -123,6 +127,7 @@ The API listens on port 5000 by default. The frontend's `API_URL` in `src/App.js
 | POST | `/api/registrations` | Create registration and ticket code |
 | POST | `/api/simulate-payment` | Simulate payment status |
 | POST | `/api/validate-ticket` | Validate QR ticket and check in attendee |
+| GET | `/api/health` | Backend health check |
 
 Payment is a demonstration only. It is not a real payment gateway and must not be presented as accepting real money.
 
@@ -141,6 +146,7 @@ The Vite `base` setting is configured for the repository's GitHub Pages path. A 
 
 ## Known scope / limitations
 - Payment is simulated only; no real payment provider is connected.
-- Email confirmations and downloadable PDF tickets are not implemented.
-- Event capacity limits and registration deadlines are not enforced.
+- Email confirmations are not implemented. Users can print tickets or use the browser's Save as PDF option.
+- Event capacity limits are not enforced.
+- Registration closes at the end of the event date; there is no separate configurable registration deadline.
 - The backend uses a server-side Supabase secret, so keep that secret private and rotate it if it is ever exposed.
