@@ -150,3 +150,11 @@ The Vite `base` setting is configured for the repository's GitHub Pages path. A 
 - Event capacity limits are not enforced.
 - Registration closes at the end of the event date; there is no separate configurable registration deadline.
 - The backend uses a server-side Supabase secret, so keep that secret private and rotate it if it is ever exposed.
+
+## Project documentation and testing
+
+- [Complete project documentation](./docs/PROJECT_DOCUMENTATION.md)
+- [Testing plan and regression checklist](./docs/TESTING.md)
+- [Impact analysis](./docs/IMPACT_ANALYSIS.md)
+
+Run the deployed API smoke tests from the project root with `npm run test:api`. Set `API_URL` to your local backend URL first when testing locally.
