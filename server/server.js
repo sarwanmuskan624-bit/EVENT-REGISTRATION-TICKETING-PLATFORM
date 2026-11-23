@@ -202,6 +202,20 @@ app.post("/api/demo-payment", async (req, res) => {
 
 app.post("/api/validate-ticket", async (req, res) => {
   try {
+    const authorization = String(req.headers.authorization || "");
+    const accessToken = authorization.startsWith("Bearer ")
+      ? authorization.slice(7).trim()
+      : "";
+
+    if (!accessToken) {
+      return res.status(401).json({ success: false, message: "Please sign in to scan tickets." });
+    }
+
+    const { data: authData, error: authError } = await supabase.auth.getUser(accessToken);
+    if (authError || !authData?.user) {
+      return res.status(401).json({ success: false, message: "Your session is invalid. Please sign in again." });
+    }
+
     const ticketCode = String(req.body?.ticket_code || "").trim();
     if (!ticketCode) {
       return res.status(400).json({ success: false, message: "Ticket code is required." });
@@ -219,6 +233,20 @@ app.post("/api/validate-ticket", async (req, res) => {
     if (!ticket) {
       return res.status(404).json({ success: false, message: "Invalid ticket." });
     }
+
+    const { data: eventOwner, error: ownerError } = await supabase
+      .from("events")
+      .select("owner_id")
+      .eq("id", ticket.event_id)
+      .maybeSingle();
+
+    if (ownerError || !eventOwner) {
+      return res.status(500).json({ success: false, message: "Could not verify event ownership." });
+    }
+    if (eventOwner.owner_id !== authData.user.id) {
+      return res.status(403).json({ success: false, message: "You can only scan tickets for events in your own workspace." });
+    }
+
     if (ticket.payment_status !== "Paid") {
       return res.status(402).json({
         success: false,
