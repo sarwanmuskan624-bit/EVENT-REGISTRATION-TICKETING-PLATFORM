@@ -28,6 +28,7 @@ export default function App() {
   const [ticket, setTicket] = useState(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [authMode, setAuthMode] = useState("signin");
   const [search, setSearch] = useState("");
   const [showEventForm, setShowEventForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
@@ -90,7 +91,7 @@ export default function App() {
       { data: eventData, error: eventError },
       { data: regData, error: regError }
     ] = await Promise.all([
-      supabase.from("events").select("*").order("event_date", { ascending: true }),
+      supabase.from("events").select("*").eq("owner_id", session.user.id).order("event_date", { ascending: true }),
       supabase.from("registrations").select("*").order("id", { ascending: false })
     ]);
 
@@ -121,6 +122,32 @@ export default function App() {
 
     if (error) setMessage(error.message);
     else setPage("dashboard");
+  }
+
+  async function signUp(e) {
+    e.preventDefault();
+    setBusy(true);
+    setMessage("");
+
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password
+    });
+
+    setBusy(false);
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    if (data.session) {
+      setPage("dashboard");
+      setMessage("Account created successfully. Welcome to EventHub!");
+    } else {
+      setAuthMode("signin");
+      setMessage("Account created. Please check your email to confirm your account, then sign in.");
+    }
   }
 
   async function logout() {
@@ -537,16 +564,18 @@ export default function App() {
 
       {page === "login" && (
         <main className="auth-page">
-          <form className="auth-card" onSubmit={login}>
+          <form className="auth-card" onSubmit={authMode === "signup" ? signUp : login}>
             <div className="brand-mark">
               <Ticket size={23} />
             </div>
 
-            <span className="eyebrow">EVENTHUB ADMIN</span>
-            <h1>Welcome back</h1>
+            <span className="eyebrow">EVENTHUB ACCOUNT</span>
+            <h1>{authMode === "signup" ? "Create your account" : "Welcome back"}</h1>
 
             <p className="muted">
-              Sign in to manage events, registrations and attendance.
+              {authMode === "signup"
+                ? "Create your own workspace to manage your events and registrations."
+                : "Sign in to manage your events, registrations and attendance."}
             </p>
 
             <label>
@@ -575,8 +604,19 @@ export default function App() {
               className="btn btn-primary full"
               disabled={busy}
             >
-              {busy ? "Signing in…" : "Sign in"}
+              {busy ? (authMode === "signup" ? "Creating account…" : "Signing in…") : (authMode === "signup" ? "Create account" : "Sign in")}
               <ArrowRight size={17} />
+            </button>
+
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => {
+                setAuthMode(authMode === "signup" ? "signin" : "signup");
+                setMessage("");
+              }}
+            >
+              {authMode === "signup" ? "Already have an account? Sign in" : "New to EventHub? Create an account"}
             </button>
 
             <button
@@ -591,7 +631,7 @@ export default function App() {
             </button>
 
             <p className="fine-print">
-              Admin accounts are managed in Supabase Authentication.
+              Each account has its own event workspace. Confirm your email if prompted.
             </p>
           </form>
         </main>
@@ -943,7 +983,7 @@ export default function App() {
           onNavigate={setPage}
           onLogout={logout}
         >
-          <QRScanner onValidated={loadAdminData} />
+          <QRScanner session={session} onValidated={loadAdminData} />
         </AdminLayout>
       )}
 
@@ -1703,7 +1743,7 @@ function ReportsPage({ events, registrations }) {
   );
 }
 
-function QRScanner({ onValidated }) {
+function QRScanner({ session, onValidated }) {
   const [scanKey, setScanKey] = useState(0);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
@@ -1722,7 +1762,10 @@ function QRScanner({ onValidated }) {
     try {
       const response = await fetch(`${API_URL}/api/validate-ticket`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token || ""}`
+        },
         body: JSON.stringify({ ticket_code: normalizedCode })
       });
       const data = await response.json();
