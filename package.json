@@ -12,7 +12,7 @@
     "preview": "vite preview",
     "start": "vite --host 0.0.0.0",
     "server": "npm --prefix server start",
-    "test:api": "node --test server/test"
+    "test:api": "node --test server/test/api.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",
