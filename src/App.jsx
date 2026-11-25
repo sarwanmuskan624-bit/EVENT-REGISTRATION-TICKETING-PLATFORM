@@ -22,6 +22,7 @@ const formatDate = (value) => {
 export default function App() {
   const [session, setSession] = useState(null);
   const [events, setEvents] = useState([]);
+  const [publicEvents, setPublicEvents] = useState([]);
   const [registrations, setRegistrations] = useState([]);
   const [page, setPage] = useState("home");
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -79,7 +80,7 @@ export default function App() {
       }
 
       const data = await response.json();
-      setEvents(data || []);
+      setPublicEvents(data || []);
     } catch (error) {
       setMessage(`Could not load events: ${error.message}`);
     }
@@ -416,7 +417,7 @@ export default function App() {
 
       {page === "home" && (
         <HomePage
-          events={events}
+          events={publicEvents}
           onRegister={(event) => {
             setSelectedEvent(event);
             setMessage("");
