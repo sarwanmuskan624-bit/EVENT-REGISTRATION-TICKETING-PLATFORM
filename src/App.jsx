@@ -30,6 +30,7 @@ export default function App() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [authMode, setAuthMode] = useState("signin");
+  const [recoveryMode, setRecoveryMode] = useState(false);
   const [search, setSearch] = useState("");
   const [showEventForm, setShowEventForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
@@ -51,8 +52,14 @@ export default function App() {
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
+      (event, newSession) => {
         setSession(newSession);
+        if (event === "PASSWORD_RECOVERY") {
+          setRecoveryMode(true);
+          setPage("login");
+          setPassword("");
+          setMessage("Enter and save your new password below.");
+        }
       }
     );
 
@@ -123,6 +130,29 @@ export default function App() {
 
     if (error) setMessage(error.message);
     else setPage("dashboard");
+  }
+
+  async function updatePassword(e) {
+    e.preventDefault();
+    if (password.length < 6) {
+      setMessage("Password must be at least 6 characters long.");
+      return;
+    }
+    setBusy(true);
+    setMessage("");
+    const { error } = await supabase.auth.updateUser({ password });
+    setBusy(false);
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+    await supabase.auth.signOut();
+    setSession(null);
+    setRecoveryMode(false);
+    setAuthMode("signin");
+    setPassword("");
+    setPage("login");
+    setMessage("Password updated successfully. Please sign in with your new password.");
   }
 
   async function signUp(e) {
@@ -565,30 +595,34 @@ export default function App() {
 
       {page === "login" && (
         <main className="auth-page">
-          <form className="auth-card" onSubmit={authMode === "signup" ? signUp : login}>
+          <form className="auth-card" onSubmit={recoveryMode ? updatePassword : (authMode === "signup" ? signUp : login)}>
             <div className="brand-mark">
               <Ticket size={23} />
             </div>
 
             <span className="eyebrow">EVENTHUB ACCOUNT</span>
-            <h1>{authMode === "signup" ? "Create your account" : "Welcome back"}</h1>
+            <h1>{recoveryMode ? "Set a new password" : (authMode === "signup" ? "Create your account" : "Welcome back")}</h1>
 
             <p className="muted">
-              {authMode === "signup"
-                ? "Create your own workspace to manage your events and registrations."
-                : "Sign in to manage your events, registrations and attendance."}
+              {recoveryMode
+                ? "Choose a new password for your EventHub account."
+                : (authMode === "signup"
+                  ? "Create your own workspace to manage your events and registrations."
+                  : "Sign in to manage your events, registrations and attendance.")}
             </p>
 
-            <label>
-              Email address
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@example.com"
-                required
-              />
-            </label>
+            {!recoveryMode && (
+              <label>
+                Email address
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@example.com"
+                  required
+                />
+              </label>
+            )}
 
             <label>
               Password
@@ -596,7 +630,8 @@ export default function App() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Your password"
+                placeholder={recoveryMode ? "Enter new password (at least 6 characters)" : "Your password"}
+                minLength={6}
                 required
               />
             </label>
@@ -605,20 +640,22 @@ export default function App() {
               className="btn btn-primary full"
               disabled={busy}
             >
-              {busy ? (authMode === "signup" ? "Creating account…" : "Signing in…") : (authMode === "signup" ? "Create account" : "Sign in")}
+              {busy ? (recoveryMode ? "Updating password…" : (authMode === "signup" ? "Creating account…" : "Signing in…")) : (recoveryMode ? "Update password" : (authMode === "signup" ? "Create account" : "Sign in"))}
               <ArrowRight size={17} />
             </button>
 
-            <button
-              type="button"
-              className="text-button"
-              onClick={() => {
-                setAuthMode(authMode === "signup" ? "signin" : "signup");
-                setMessage("");
-              }}
-            >
-              {authMode === "signup" ? "Already have an account? Sign in" : "New to EventHub? Create an account"}
-            </button>
+            {!recoveryMode && (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => {
+                  setAuthMode(authMode === "signup" ? "signin" : "signup");
+                  setMessage("");
+                }}
+              >
+                {authMode === "signup" ? "Already have an account? Sign in" : "New to EventHub? Create an account"}
+              </button>
+            )}
 
             <button
               type="button"
