@@ -30,6 +30,16 @@ test("registration rejects an empty request without creating a record", async ()
   assert.match(body.error, /event/i);
 });
 
+test("demo payment requires the registered email as well as the ticket code", async () => {
+  const { response, body } = await request("/api/demo-payment", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ticket_code: "EHT-INVALID" })
+  });
+  assert.equal(response.status, 400);
+  assert.match(body.error, /email/i);
+});
+
 test("ticket validation rejects an empty ticket code", async () => {
   const { response, body } = await request("/api/validate-ticket", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({})
