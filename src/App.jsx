@@ -71,17 +71,29 @@ export default function App() {
 
   useEffect(() => {
     loadEvents();
-  }, []);
+  }, [session]);
 
   useEffect(() => {
     if (session) loadAdminData();
   }, [session]);
 
-  // Load events from Express backend API
+  // Logged-in users see only their own events in Upcoming Events.
+  // Visitors who are not logged in can browse all public events.
   async function loadEvents() {
     try {
-      const response = await fetch(`${API_URL}/api/events`);
+      if (session?.user?.id) {
+        const { data, error } = await supabase
+          .from("events")
+          .select("*")
+          .eq("owner_id", session.user.id)
+          .order("event_date", { ascending: true });
 
+        if (error) throw error;
+        setPublicEvents(data || []);
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/events`);
       if (!response.ok) {
         throw new Error("Could not load events from backend.");
       }
