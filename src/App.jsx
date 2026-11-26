@@ -24,7 +24,7 @@ export default function App() {
   const [events, setEvents] = useState([]);
   const [publicEvents, setPublicEvents] = useState([]);
   const [registrations, setRegistrations] = useState([]);
-  const [page, setPage] = useState("login");
+  const [page, setPage] = useState("home");
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [ticket, setTicket] = useState(null);
   const [email, setEmail] = useState("");
@@ -49,7 +49,7 @@ export default function App() {
       if (error) setMessage(error.message);
       setSession(data?.session ?? null);
       const hasSharedRegistration = new URLSearchParams(window.location.search).has("register");
-      setPage(hasSharedRegistration ? "register" : (data?.session ? "dashboard" : "login"));
+      setPage(hasSharedRegistration ? "register" : (data?.session ? "dashboard" : "home"));
       setLoading(false);
     });
 
@@ -232,7 +232,7 @@ export default function App() {
 
   async function logout() {
     await supabase.auth.signOut();
-    setPage("login");
+    setPage("home");
     setPublicEvents([]);
     setEvents([]);
     setRegistrations([]);
