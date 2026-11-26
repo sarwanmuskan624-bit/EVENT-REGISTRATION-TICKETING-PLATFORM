@@ -16,18 +16,26 @@ test("API health endpoint responds successfully", async () => {
   assert.equal(body.service, "EventHub API");
 });
 
-test("events endpoint returns an array", async () => {
+test("events endpoint requires authentication", async () => {
   const { response, body } = await request("/api/events");
-  assert.equal(response.status, 200);
-  assert.ok(Array.isArray(body));
+  assert.equal(response.status, 401);
+  assert.match(body.error, /sign in/i);
 });
 
 test("registration rejects an empty request without creating a record", async () => {
   const { response, body } = await request("/api/registrations", {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({})
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({})
   });
   assert.equal(response.status, 400);
   assert.match(body.error, /event/i);
+});
+
+test("public event lookup rejects a malformed registration token", async () => {
+  const { response, body } = await request("/api/public-events/not-a-valid-token");
+  assert.equal(response.status, 400);
+  assert.match(body.error, /invalid event link/i);
 });
 
 test("demo payment requires the registered email as well as the ticket code", async () => {
@@ -42,7 +50,9 @@ test("demo payment requires the registered email as well as the ticket code", as
 
 test("ticket validation rejects an empty ticket code", async () => {
   const { response, body } = await request("/api/validate-ticket", {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({})
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({})
   });
   assert.equal(response.status, 400);
   assert.equal(body.success, false);
@@ -50,7 +60,9 @@ test("ticket validation rejects an empty ticket code", async () => {
 
 test("demo payment rejects a missing ticket code", async () => {
   const { response, body } = await request("/api/demo-payment", {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({})
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({})
   });
   assert.equal(response.status, 400);
   assert.match(body.error, /ticket/i);
