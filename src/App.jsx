@@ -161,6 +161,7 @@ export default function App() {
     }
 
     setEvents(ownedEvents);
+    setPublicEvents(ownedEvents);
     setRegistrations(registrationData);
   }
 
@@ -547,7 +548,7 @@ export default function App() {
 
       {page === "home" && (
         <HomePage
-          events={[]}
+          events={session ? publicEvents : []}
           onRegister={(event) => {
             setSelectedEvent(event);
             setMessage("");
