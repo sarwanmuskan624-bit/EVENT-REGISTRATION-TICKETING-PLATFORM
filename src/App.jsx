@@ -6,7 +6,7 @@ import { Html5QrcodeScanner } from "html5-qrcode";
 import {
   CalendarDays, Ticket, Users, LayoutDashboard, LogOut, Plus,
   Trash2, Pencil, CheckCircle, ArrowRight, MapPin, Sparkles,
-  Menu, X, ShieldCheck, Search, ChevronRight, QrCode, BarChart3, Download
+  Menu, X, ShieldCheck, Search, ChevronRight, QrCode, BarChart3, Download, Share2
 } from "lucide-react";
 import "./App.css";
 
@@ -48,7 +48,8 @@ export default function App() {
       if (!mounted) return;
       if (error) setMessage(error.message);
       setSession(data?.session ?? null);
-      setPage(data?.session ? "dashboard" : "login");
+      const hasSharedRegistration = new URLSearchParams(window.location.search).has("register");
+      setPage(hasSharedRegistration ? "register" : (data?.session ? "dashboard" : "login"));
       setLoading(false);
     });
 
@@ -68,6 +69,28 @@ export default function App() {
       mounted = false;
       listener.subscription.unsubscribe();
     };
+  }, []);
+
+  useEffect(() => {
+    const registerId = new URLSearchParams(window.location.search).get("register");
+    if (!registerId) return;
+
+    let active = true;
+    setPage("register");
+
+    async function loadSharedEvent() {
+      try {
+        const response = await fetch(`${API_URL}/api/public-events/${encodeURIComponent(registerId)}`);
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "This registration link is not available.");
+        if (active) setSelectedEvent(result);
+      } catch (error) {
+        if (active) setMessage(error.message || "Could not load this event.");
+      }
+    }
+
+    loadSharedEvent();
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -215,6 +238,16 @@ export default function App() {
     setRegistrations([]);
     setTicket(null);
     setMessage("");
+  }
+
+  async function shareEvent(event) {
+    const registrationUrl = `${window.location.origin}${window.location.pathname}?register=${encodeURIComponent(event.id)}`;
+    try {
+      await navigator.clipboard.writeText(registrationUrl);
+      setMessage("Registration link copied. You can share it with attendees.");
+    } catch {
+      setMessage(`Copy this registration link: ${registrationUrl}`);
+    }
   }
 
   async function addEvent(e) {
@@ -473,6 +506,38 @@ export default function App() {
             <X size={16} />
           </button>
         </div>
+      )}
+
+      {page === "register" && (
+        <main className="auth-page">
+          <section className="auth-card">
+            <div className="brand-mark"><Ticket size={23} /></div>
+            <span className="eyebrow">EVENT REGISTRATION</span>
+            {selectedEvent ? (
+              <>
+                <h1>Book your spot</h1>
+                <h2>{selectedEvent.name}</h2>
+                <p className="muted">{formatDate(selectedEvent.event_date)} · {selectedEvent.venue}</p>
+                <p className="muted">Ticket price: ₹{Number(selectedEvent.ticket_price || 0).toLocaleString("en-IN")}</p>
+                <form className="stack-form" onSubmit={(e) => registerForEvent(e, selectedEvent)}>
+                  <label>Full name<input name="name" placeholder="Enter your full name" required /></label>
+                  <label>Email address<input name="email" type="email" placeholder="you@example.com" required /></label>
+                  <label>Phone number<input name="phone" type="tel" placeholder="Enter phone number" required /></label>
+                  <button className="btn btn-primary full" disabled={busy}>
+                    {busy ? "Registering…" : "Register & generate ticket"} <ArrowRight size={17} />
+                  </button>
+                </form>
+                <p className="fine-print">
+                  {Number(selectedEvent.ticket_price || 0) <= 0
+                    ? "This is a free event. Your ticket will be confirmed without payment."
+                    : "Your ticket will be created with Pending payment status. You can complete the demo payment on the next screen."}
+                </p>
+              </>
+            ) : (
+              <p className="muted">Loading event details… If this message remains, ask the event organizer for a new link.</p>
+            )}
+          </section>
+        </main>
       )}
 
       {page === "home" && (
@@ -776,6 +841,7 @@ export default function App() {
 
             <EventTable
               events={events.slice(0, 5)}
+              onShare={shareEvent}
               onDelete={deleteEvent}
               onEdit={(event) => {
                 setEditingEvent(event);
@@ -887,6 +953,7 @@ export default function App() {
           <section className="admin-panel">
             <EventTable
               events={events}
+              onShare={shareEvent}
               onDelete={deleteEvent}
               onEdit={(event) => {
                 setEditingEvent(event);
@@ -1415,7 +1482,7 @@ function StatCard({ title, value, icon }) {
   );
 }
 
-function EventTable({ events, onDelete, onEdit }) {
+function EventTable({ events, onDelete, onEdit, onShare }) {
   return (
     <div className="table-scroll">
       <table className="data-table">
@@ -1438,6 +1505,13 @@ function EventTable({ events, onDelete, onEdit }) {
               <td>₹{event.ticket_price}</td>
               <td>
                 <div className="event-row-actions">
+                  <button
+                    className="btn btn-small btn-ghost"
+                    onClick={() => onShare(event)}
+                    aria-label="Copy registration link"
+                  >
+                    <Share2 size={14} /> Share link
+                  </button>
                   <button
                     className="btn btn-small btn-ghost"
                     onClick={() => onEdit(event)}
