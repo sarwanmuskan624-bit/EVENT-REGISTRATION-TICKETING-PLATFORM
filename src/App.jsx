@@ -382,7 +382,7 @@ export default function App() {
       const response = await fetch(`${API_URL}/api/demo-payment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ticket_code: ticket.id })
+        body: JSON.stringify({ ticket_code: ticket.id, email: ticket.email })
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Demo payment could not be completed.");
