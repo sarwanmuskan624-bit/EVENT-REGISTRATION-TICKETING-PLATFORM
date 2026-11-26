@@ -101,8 +101,7 @@ export default function App() {
     if (session) loadAdminData();
   }, [session]);
 
-  // Logged-in users see only their own events in Upcoming Events.
-  // Visitors who are not logged in can browse all public events.
+  // Signed-in users see only their own events. Logged-out visitors see no event list.
   async function loadEvents() {
     try {
       if (session?.user?.id) {
@@ -475,7 +474,9 @@ export default function App() {
         page !== "registrations-admin" &&
         page !== "scanner-admin" &&
         page !== "reports-admin" &&
-        page !== "login" && (
+        page !== "login" &&
+        page !== "register" &&
+        page !== "ticket" && (
           <PublicHeader
             onHome={() => {
               setPage("home");
@@ -679,10 +680,10 @@ export default function App() {
               className="btn btn-ghost"
               onClick={() => {
                 setTicket(null);
-                setPage("home");
+                setPage(session ? "dashboard" : "login");
               }}
             >
-              Back to events
+              Back to account
             </button>
           </div>
         </main>
@@ -751,17 +752,6 @@ export default function App() {
                 {authMode === "signup" ? "Already have an account? Sign in" : "New to EventHub? Create an account"}
               </button>
             )}
-
-            <button
-              type="button"
-              className="text-button"
-              onClick={() => {
-                setPage("home");
-                setMessage("");
-              }}
-            >
-              ← Back to website
-            </button>
 
             <p className="fine-print">
               Each account has its own event workspace. Confirm your email if prompted.
@@ -865,7 +855,7 @@ export default function App() {
               <span className="eyebrow">EVENT MANAGEMENT</span>
               <h1>Your events</h1>
               <p className="muted">
-                Create and manage the events shown on your public website.
+                Create and manage your events, then share individual registration links with attendees.
               </p>
             </div>
 
@@ -1446,9 +1436,9 @@ function AdminLayout({ pageTitle, children, onNavigate, onLogout }) {
 
           <button
             className="back-site"
-            onClick={() => onNavigate("home")}
+            onClick={() => onNavigate("dashboard")}
           >
-            ← View public website
+            ← Back to dashboard
           </button>
         </div>
       </aside>
