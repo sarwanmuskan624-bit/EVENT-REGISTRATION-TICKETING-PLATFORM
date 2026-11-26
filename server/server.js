@@ -50,22 +50,37 @@ app.get("/api/health", (_req, res) => {
   res.json({ success: true, service: "EventHub API" });
 });
 
-app.get("/api/events", async (_req, res) => {
+app.get("/api/events", async (req, res) => {
   try {
+    const authorization = String(req.headers.authorization || "");
+    const accessToken = authorization.startsWith("Bearer ")
+      ? authorization.slice(7).trim()
+      : "";
+
+    if (!accessToken) {
+      return res.status(401).json({ error: "Please sign in to view your events." });
+    }
+
+    const { data: authData, error: authError } = await supabase.auth.getUser(accessToken);
+    if (authError || !authData?.user) {
+      return res.status(401).json({ error: "Your session is invalid. Please sign in again." });
+    }
+
     const { data, error } = await supabase
       .from("events")
       .select("id, name, event_date, venue, ticket_price")
+      .eq("owner_id", authData.user.id)
       .order("event_date", { ascending: true });
 
     if (error) {
       console.error("EVENTS ERROR:", error.message);
-      return res.status(500).json({ error: "Unable to load events right now." });
+      return res.status(500).json({ error: "Unable to load your events right now." });
     }
 
     return res.json(data || []);
   } catch (error) {
     console.error("EVENTS ERROR:", error);
-    return res.status(500).json({ error: "Unable to load events right now." });
+    return res.status(500).json({ error: "Unable to load your events right now." });
   }
 });
 
