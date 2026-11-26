@@ -105,27 +105,46 @@ export default function App() {
     }
   }
 
-  // Admin data remains connected to Supabase
+  // Load only this signed-in user's events and registrations.
+  // Supabase RLS remains the database-level security boundary.
   async function loadAdminData() {
-    const [
-      { data: eventData, error: eventError },
-      { data: regData, error: regError }
-    ] = await Promise.all([
-      supabase.from("events").select("*").eq("owner_id", session.user.id).order("event_date", { ascending: true }),
-      supabase.from("registrations").select("*").order("id", { ascending: false })
-    ]);
-
-    if (eventError || regError) {
-      setMessage(
-        eventError?.message ||
-        regError?.message ||
-        "Could not load dashboard data."
-      );
+    if (!session?.user?.id) {
+      setEvents([]);
+      setRegistrations([]);
       return;
     }
 
-    setEvents(eventData || []);
-    setRegistrations(regData || []);
+    const { data: eventData, error: eventError } = await supabase
+      .from("events")
+      .select("*")
+      .eq("owner_id", session.user.id)
+      .order("event_date", { ascending: true });
+
+    if (eventError) {
+      setMessage(eventError.message || "Could not load your events.");
+      return;
+    }
+
+    const ownedEvents = eventData || [];
+    const ownedEventIds = ownedEvents.map((event) => event.id);
+
+    let registrationData = [];
+    if (ownedEventIds.length > 0) {
+      const { data, error: registrationError } = await supabase
+        .from("registrations")
+        .select("*")
+        .in("event_id", ownedEventIds)
+        .order("id", { ascending: false });
+
+      if (registrationError) {
+        setMessage(registrationError.message || "Could not load your registrations.");
+        return;
+      }
+      registrationData = data || [];
+    }
+
+    setEvents(ownedEvents);
+    setRegistrations(registrationData);
   }
 
   async function login(e) {
@@ -384,7 +403,8 @@ export default function App() {
     const { error } = await supabase
       .from("registrations")
       .update({ [column]: value })
-      .eq("id", id);
+      .eq("id", id)
+      .in("event_id", events.map((event) => event.id));
 
     if (error) setMessage(error.message);
     else await loadAdminData();
@@ -396,7 +416,8 @@ export default function App() {
     const { error } = await supabase
       .from("registrations")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .in("event_id", events.map((event) => event.id));
 
     if (error) setMessage(error.message);
     else await loadAdminData();
