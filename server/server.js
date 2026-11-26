@@ -84,6 +84,32 @@ app.get("/api/events", async (req, res) => {
   }
 });
 
+app.get("/api/public-events/:id", async (req, res) => {
+  try {
+    const eventId = Number(req.params.id);
+    if (!Number.isSafeInteger(eventId) || eventId <= 0) {
+      return res.status(400).json({ error: "Invalid event link." });
+    }
+
+    const { data: event, error } = await supabase
+      .from("events")
+      .select("id, name, event_date, venue, ticket_price")
+      .eq("id", eventId)
+      .maybeSingle();
+
+    if (error) {
+      console.error("PUBLIC EVENT LOOKUP ERROR:", error.message);
+      return res.status(500).json({ error: "Could not load this event right now." });
+    }
+    if (!event) return res.status(404).json({ error: "This event link is invalid or the event was removed." });
+
+    return res.json(event);
+  } catch (error) {
+    console.error("PUBLIC EVENT LOOKUP ERROR:", error);
+    return res.status(500).json({ error: "Could not load this event right now." });
+  }
+});
+
 app.post("/api/registrations", async (req, res) => {
   try {
     const eventId = Number(req.body?.event_id);
