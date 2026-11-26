@@ -68,7 +68,7 @@ app.get("/api/events", async (req, res) => {
 
     const { data, error } = await supabase
       .from("events")
-      .select("id, name, event_date, venue, ticket_price")
+      .select("id, name, event_date, venue, ticket_price, registration_token")
       .eq("owner_id", authData.user.id)
       .order("event_date", { ascending: true });
 
