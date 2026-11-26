@@ -54,7 +54,7 @@ app.get("/api/events", async (_req, res) => {
   try {
     const { data, error } = await supabase
       .from("events")
-      .select("*")
+      .select("id, name, event_date, venue, ticket_price")
       .order("event_date", { ascending: true });
 
     if (error) {
@@ -163,16 +163,21 @@ app.post("/api/registrations", async (req, res) => {
 app.post("/api/demo-payment", async (req, res) => {
   try {
     const ticketCode = String(req.body?.ticket_code || "").trim();
-    if (!ticketCode) return res.status(400).json({ error: "Ticket ID is required." });
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    if (!ticketCode || !email) {
+      return res.status(400).json({ error: "Ticket ID and registered email are required for demo payment." });
+    }
 
     const { data: registration, error: findError } = await supabase
       .from("registrations")
-      .select("id, ticket_code, payment_status, event_id")
+      .select("id, ticket_code, email, payment_status, event_id")
       .eq("ticket_code", ticketCode)
       .maybeSingle();
 
     if (findError) return res.status(500).json({ error: "Could not find this registration." });
-    if (!registration) return res.status(404).json({ error: "Ticket not found." });
+    if (!registration || String(registration.email || "").trim().toLowerCase() !== email) {
+      return res.status(404).json({ error: "Ticket and registered email do not match." });
+    }
     if (registration.payment_status === "Paid") {
       return res.json({ success: true, payment_status: "Paid", message: "This ticket is already marked Paid." });
     }
@@ -202,6 +207,11 @@ app.post("/api/demo-payment", async (req, res) => {
 
 app.post("/api/validate-ticket", async (req, res) => {
   try {
+    const ticketCode = String(req.body?.ticket_code || "").trim();
+    if (!ticketCode) {
+      return res.status(400).json({ success: false, message: "Ticket code is required." });
+    }
+
     const authorization = String(req.headers.authorization || "");
     const accessToken = authorization.startsWith("Bearer ")
       ? authorization.slice(7).trim()
@@ -214,11 +224,6 @@ app.post("/api/validate-ticket", async (req, res) => {
     const { data: authData, error: authError } = await supabase.auth.getUser(accessToken);
     if (authError || !authData?.user) {
       return res.status(401).json({ success: false, message: "Your session is invalid. Please sign in again." });
-    }
-
-    const ticketCode = String(req.body?.ticket_code || "").trim();
-    if (!ticketCode) {
-      return res.status(400).json({ success: false, message: "Ticket code is required." });
     }
 
     const { data: ticket, error } = await supabase
