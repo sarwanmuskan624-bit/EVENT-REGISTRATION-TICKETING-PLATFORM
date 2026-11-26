@@ -93,7 +93,7 @@ app.get("/api/public-events/:token", async (req, res) => {
 
     const { data: event, error } = await supabase
       .from("events")
-      .select("id, name, event_date, venue, ticket_price")
+      .select("id, name, event_date, venue, ticket_price, registration_token")
       .eq("registration_token", registrationToken)
       .maybeSingle();
 
