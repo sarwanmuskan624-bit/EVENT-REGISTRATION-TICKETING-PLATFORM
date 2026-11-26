@@ -24,7 +24,7 @@ export default function App() {
   const [events, setEvents] = useState([]);
   const [publicEvents, setPublicEvents] = useState([]);
   const [registrations, setRegistrations] = useState([]);
-  const [page, setPage] = useState("home");
+  const [page, setPage] = useState("login");
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [ticket, setTicket] = useState(null);
   const [email, setEmail] = useState("");
@@ -48,6 +48,7 @@ export default function App() {
       if (!mounted) return;
       if (error) setMessage(error.message);
       setSession(data?.session ?? null);
+      setPage(data?.session ? "dashboard" : "login");
       setLoading(false);
     });
 
@@ -93,13 +94,7 @@ export default function App() {
         return;
       }
 
-      const response = await fetch(`${API_URL}/api/events`);
-      if (!response.ok) {
-        throw new Error("Could not load events from backend.");
-      }
-
-      const data = await response.json();
-      setPublicEvents(data || []);
+      setPublicEvents([]);
     } catch (error) {
       setMessage(`Could not load events: ${error.message}`);
     }
@@ -214,7 +209,9 @@ export default function App() {
 
   async function logout() {
     await supabase.auth.signOut();
-    setPage("home");
+    setPage("login");
+    setPublicEvents([]);
+    setEvents([]);
     setRegistrations([]);
     setTicket(null);
     setMessage("");
