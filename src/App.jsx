@@ -543,7 +543,7 @@ export default function App() {
 
       {page === "home" && (
         <HomePage
-          events={publicEvents}
+          events={[]}
           onRegister={(event) => {
             setSelectedEvent(event);
             setMessage("");
@@ -1436,9 +1436,9 @@ function AdminLayout({ pageTitle, children, onNavigate, onLogout }) {
 
           <button
             className="back-site"
-            onClick={() => onNavigate("dashboard")}
+            onClick={() => onNavigate("home")}
           >
-            ← Back to dashboard
+            ← View Homepage
           </button>
         </div>
       </aside>
