@@ -84,17 +84,17 @@ app.get("/api/events", async (req, res) => {
   }
 });
 
-app.get("/api/public-events/:id", async (req, res) => {
+app.get("/api/public-events/:token", async (req, res) => {
   try {
-    const eventId = Number(req.params.id);
-    if (!Number.isSafeInteger(eventId) || eventId <= 0) {
+    const registrationToken = String(req.params.token || "").trim();
+    if (!/^[a-f0-9]{32}$/i.test(registrationToken)) {
       return res.status(400).json({ error: "Invalid event link." });
     }
 
     const { data: event, error } = await supabase
       .from("events")
       .select("id, name, event_date, venue, ticket_price")
-      .eq("id", eventId)
+      .eq("registration_token", registrationToken)
       .maybeSingle();
 
     if (error) {
@@ -112,13 +112,13 @@ app.get("/api/public-events/:id", async (req, res) => {
 
 app.post("/api/registrations", async (req, res) => {
   try {
-    const eventId = Number(req.body?.event_id);
+    const registrationToken = String(req.body?.registration_token || "").trim();
     const studentName = String(req.body?.student_name || "").trim();
     const email = String(req.body?.email || "").trim().toLowerCase();
     const phone = String(req.body?.phone || "").replace(/[^0-9+]/g, "");
 
-    if (!Number.isSafeInteger(eventId) || eventId <= 0) {
-      return res.status(400).json({ error: "Please select a valid event." });
+    if (!/^[a-f0-9]{32}$/i.test(registrationToken)) {
+      return res.status(400).json({ error: "Please open a valid event registration link." });
     }
     if (studentName.length < 2 || studentName.length > 100) {
       return res.status(400).json({ error: "Please enter a name between 2 and 100 characters." });
@@ -133,7 +133,7 @@ app.post("/api/registrations", async (req, res) => {
     const { data: event, error: eventError } = await supabase
       .from("events")
       .select("id, name, event_date, ticket_price")
-      .eq("id", eventId)
+      .eq("registration_token", registrationToken)
       .maybeSingle();
 
     if (eventError) {
@@ -141,8 +141,10 @@ app.post("/api/registrations", async (req, res) => {
       return res.status(500).json({ error: "Could not verify the selected event." });
     }
     if (!event) {
-      return res.status(404).json({ error: "The selected event no longer exists." });
+      return res.status(404).json({ error: "This event registration link is invalid or the event was removed." });
     }
+
+    const eventId = event.id;
     if (event.event_date) {
       const eventDate = new Date(`${event.event_date}T23:59:59`);
       if (!Number.isNaN(eventDate.getTime()) && eventDate < new Date()) {
