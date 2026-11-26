@@ -240,7 +240,11 @@ export default function App() {
   }
 
   async function shareEvent(event) {
-    const registrationUrl = `${window.location.origin}${window.location.pathname}?register=${encodeURIComponent(event.id)}`;
+    if (!event.registration_token) {
+      setMessage("This event does not have a registration link yet. Please refresh your events and try again.");
+      return;
+    }
+    const registrationUrl = `${window.location.origin}${window.location.pathname}?register=${encodeURIComponent(event.registration_token)}`;
     try {
       await navigator.clipboard.writeText(registrationUrl);
       setMessage("Registration link copied. You can share it with attendees.");
@@ -359,7 +363,7 @@ export default function App() {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          event_id: event.id,
+          registration_token: event.registration_token,
           student_name: studentName,
           email: studentEmail,
           phone: studentPhone
