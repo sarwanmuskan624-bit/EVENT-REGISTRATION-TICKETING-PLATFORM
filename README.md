@@ -1,37 +1,54 @@
 # EventHub – Event Registration & Ticketing Platform
 
-EventHub is a student event-registration platform. Visitors can browse events, register, receive a QR ticket and print it. Administrators can sign in, manage events and registrations, view reports, update payment/attendance status and scan tickets.
+EventHub is a web-based event registration and ticketing platform designed for college events. Event organisers can sign in, manage their own events, track registrations and attendance, scan QR tickets, and view reports. Attendees can open a secure event-specific registration link, register, receive a digital ticket, and print it.
 
-## Features
+## Live Demo
 
-### Public website
-- Browse events loaded from the Express API.
-- Register with name, email and phone.
-- Receive a ticket with a unique ticket code and QR code.
-- Prevent duplicate registrations for the same event using the same email address.
-- Validate name, email, phone number and event availability before saving a registration.
-- Complete a clearly labelled demo payment for college-project presentation; no real money is charged.
-- Print the ticket.
+- **Website:** https://sarwanmuskan624-bit.github.io/EVENT-REGISTRATION-TICKETING-PLATFORM/
+- **Backend API:** https://event-registration-ticketing-platform.onrender.com
+- **GitHub Repository:** https://github.com/sarwanmuskan624-bit/EVENT-REGISTRATION-TICKETING-PLATFORM
 
-### Admin workspace
+## Key Features
+
+### Public website and attendee registration
+- Public homepage is accessible without signing in.
+- Logged-out visitors do not see organisers' private event lists.
+- Each signed-in organiser sees only their own events.
+- Each event has a shareable, token-based registration link.
+- The public registration link opens only the selected event.
+- Attendee form validates name, email and phone number.
+- Duplicate registration for the same event and email is prevented.
+- Successful registration creates a unique Ticket ID and QR code.
+- Attendees can view and print their ticket.
+- A clearly labelled demo payment flow is available for project demonstration; it does not charge real money.
+
+### Organiser dashboard
 - Supabase email/password authentication.
-- Dashboard overview.
-- Create and delete events.
-- Search, update and delete registrations.
-- Payment and attendance status management.
-- Reports for event registrations, payment status, attendance and estimated paid ticket value.
-- Export registration records as a CSV spreadsheet.
-- QR scanner that validates a ticket and marks it as Present; manual Ticket ID verification is also available if camera access is unavailable.
-- Reject invalid tickets and prevent a second check-in for an already-used ticket.
+- Create, edit and delete events.
+- View and manage registrations for the organiser's own events.
+- Search and update registration details/status.
+- View reports and event analytics.
+- Export registration data as CSV.
+- Scan QR tickets or enter a Ticket ID manually.
+- Check ticket payment status before check-in.
+- Prevent invalid tickets and duplicate check-ins.
+- User data is separated by organiser account.
 
-## Technology
-- React 19 + Vite
-- Supabase Database and Authentication
-- Express 5 backend hosted separately
-- qrcode.react and html5-qrcode
-- GitHub Pages frontend deployment
+## Technology Stack
 
-## Project structure
+| Layer | Technology |
+|---|---|
+| Frontend | React 19, JavaScript, Vite, CSS |
+| Backend | Node.js, Express 5 |
+| Database | Supabase PostgreSQL |
+| Authentication | Supabase Auth |
+| QR code generation | qrcode.react |
+| QR code scanning | html5-qrcode |
+| Frontend hosting | GitHub Pages |
+| Backend hosting | Render |
+
+## Project Structure
+
 ```text
 .
 ├── src/
@@ -43,118 +60,109 @@ EventHub is a student event-registration platform. Visitors can browse events, r
 ├── server/
 │   ├── server.js
 │   └── package.json
+├── docs/
+│   ├── PROJECT_DOCUMENTATION.md
+│   ├── TESTING.md
+│   └── IMPACT_ANALYSIS.md
 ├── index.html
 ├── vite.config.js
 └── package.json
 ```
 
 ## Requirements
+
 - Node.js 20 or newer recommended
 - npm
 - A Supabase project
 
-## Environment variables
+## Environment Setup
 
 Create a root `.env` file for the frontend:
+
 ```env
 VITE_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
 VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_OR_PUBLISHABLE_KEY
 ```
 
 Create `server/.env` for the backend:
+
 ```env
 PORT=5000
 SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
 SUPABASE_SECRET_KEY=YOUR_SUPABASE_SERVICE_ROLE_SECRET
 ```
 
-Keep both real `.env` files private. Never commit a service-role/secret key or share it in screenshots. The backend Supabase secret belongs only on the server (for local use in `server/.env`, and in Render environment settings in production). Never place either secret in frontend code or GitHub. The frontend must use only the Supabase anon/publishable key.
+Use your own Supabase project values. Never commit real `.env` files, expose a service-role/secret key, or put the backend secret in frontend code. In production, configure the backend secret in Render environment settings. Only the public anon/publishable key belongs in the frontend.
 
-## Supabase data
-
-The application expects two tables.
-
-### events
-- `id`
-- `name`
-- `event_date`
-- `venue`
-- `ticket_price`
-
-### registrations
-- `id`
-- `event_id`
-- `student_name`
-- `email`
-- `phone`
-- `ticket_code`
-- `payment_status`
-- `attendance_status`
-- `created_at`
-
-The backend writes registration fields `student_name`, `email`, `phone`, `ticket_code`, `payment_status`, and `attendance_status`. Make sure the existing Supabase table has these columns. This version uses `student_name`; an additional `full_name` column is not required.
-
-## Run locally
+## Run Locally
 
 Open two terminals from the project root.
 
-### 1. Frontend
+**1. Start the frontend**
+
 ```bash
 npm install
 npm run dev
 ```
+
 Open the local URL printed by Vite (usually http://localhost:5173).
 
-### 2. Backend
+**2. Start the backend**
+
 ```bash
 cd server
 npm install
 npm start
 ```
-The API listens on port 5000 by default. The frontend's `API_URL` in `src/App.jsx` currently points to the hosted Render API; change it to your local backend URL only when testing locally.
 
-### Other scripts
-- `npm run build` – production frontend build
-- `npm run preview` – preview the production build
-- `npm run server` – start the backend using its installed dependencies
+The API listens on port 5000 by default. For local end-to-end testing, configure the frontend API URL to use your local backend.
 
-## API endpoints
+### Useful scripts
+
+| Command | Purpose |
+|---|---|
+| `npm run dev` | Start Vite development server |
+| `npm run build` | Build the frontend for production |
+| `npm run preview` | Preview the production build |
+| `npm run server` | Start the backend |
+| `npm run test:api` | Run API smoke tests |
+
+## Main API Endpoints
 
 | Method | Endpoint | Purpose |
 |---|---|---|
 | GET | `/` | Backend health message |
-| GET | `/api/events` | List events |
-| POST | `/api/registrations` | Create registration and ticket code |
-| POST | `/api/demo-payment` | Simulate a project demo payment and mark ticket Paid |
-| POST | `/api/validate-ticket` | Validate QR ticket and check in attendee |
-| GET | `/api/health` | Backend health check |
+| GET | `/api/health` | API health check |
+| GET | `/api/events` | Get events belonging to the authenticated organiser |
+| GET | `/api/public-events/:token` | Retrieve one event using its registration token |
+| POST | `/api/registrations` | Validate attendee details and create a registration |
+| POST | `/api/demo-payment` | Simulate payment status for demonstration |
+| POST | `/api/validate-ticket` | Validate a ticket and check in the attendee |
 
-**Demo payment note:** The project uses a clearly labelled payment simulation for academic demonstration. It does not connect to a payment gateway and does not charge real money. The demo endpoint is not suitable for a production ticketing or payment system.
+## Data and Access Control
+
+The application uses Supabase PostgreSQL tables for events and registrations. Event records are associated with an organiser account. Authenticated event requests are filtered by the signed-in user's ID, and ticket scanning checks that the event belongs to the current organiser. Public registration uses an event-specific registration token rather than exposing an organiser's full event list.
+
+Keep Supabase Row Level Security (RLS) enabled and configure policies carefully. The live database schema and policies are authoritative; review them in Supabase when setting up another environment.
 
 ## Deployment
-- Frontend: GitHub Pages
-- Backend: Render
-- Database and authentication: Supabase
 
-The Vite `base` setting is configured for the repository's GitHub Pages path. A frontend build can be checked with `npm run build`.
+- **Frontend:** GitHub Pages
+- **Backend:** Render
+- **Database and authentication:** Supabase
 
-## Important security notes
-- Never put a Supabase service-role/secret key in frontend code or GitHub.
-- Keep `.env` files out of version control (the repository `.gitignore` excludes them).
-- Configure Supabase Row Level Security policies intentionally. Do not disable RLS as a workaround.
-- The admin UI is protected by Supabase sign-in, but database permissions must also be enforced by Supabase policies.
+The Vite base path is configured for this GitHub Pages repository.
 
-## Known scope / limitations
-- Demo payment is a simulation only. Real payments would require a payment gateway integration, merchant onboarding and security review.
-- Email confirmations are not implemented. Users can print tickets or use the browser's Save as PDF option.
-- Event capacity limits are not enforced.
-- Registration closes at the end of the event date; there is no separate configurable registration deadline.
-- The backend uses a server-side Supabase secret, so keep that secret private and rotate it if it is ever exposed.
+## Limitations and Future Improvements
 
-## Project documentation and testing
+- **Payment is simulated only.** The project does not integrate a real payment gateway and does not charge money.
+- Registration confirmation emails are not currently implemented.
+- Event capacity limits are not currently enforced.
+- A configurable registration deadline is not currently implemented.
+- Future improvements could include a real payment gateway with server-side verification, confirmation emails, capacity management and downloadable PDF tickets.
 
-- [Complete project documentation](./docs/PROJECT_DOCUMENTATION.md)
+## Additional Documentation
+
+- [Project documentation](./docs/PROJECT_DOCUMENTATION.md)
 - [Testing plan and regression checklist](./docs/TESTING.md)
 - [Impact analysis](./docs/IMPACT_ANALYSIS.md)
-
-Run the deployed API smoke tests from the project root with `npm run test:api`. Set `API_URL` to your local backend URL first when testing locally.

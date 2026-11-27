@@ -6,7 +6,7 @@ import { Html5QrcodeScanner } from "html5-qrcode";
 import {
   CalendarDays, Ticket, Users, LayoutDashboard, LogOut, Plus,
   Trash2, Pencil, CheckCircle, ArrowRight, MapPin, Sparkles,
-  Menu, X, ShieldCheck, Search, ChevronRight, QrCode, BarChart3, Download
+  Menu, X, ShieldCheck, Search, ChevronRight, QrCode, BarChart3, Download, Share2
 } from "lucide-react";
 import "./App.css";
 
@@ -30,6 +30,7 @@ export default function App() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [authMode, setAuthMode] = useState("signin");
+  const [recoveryMode, setRecoveryMode] = useState(false);
   const [search, setSearch] = useState("");
   const [showEventForm, setShowEventForm] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
@@ -47,12 +48,20 @@ export default function App() {
       if (!mounted) return;
       if (error) setMessage(error.message);
       setSession(data?.session ?? null);
+      const hasSharedRegistration = new URLSearchParams(window.location.search).has("register");
+      setPage(hasSharedRegistration ? "register" : (data?.session ? "dashboard" : "home"));
       setLoading(false);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
+      (event, newSession) => {
         setSession(newSession);
+        if (event === "PASSWORD_RECOVERY") {
+          setRecoveryMode(true);
+          setPage("login");
+          setPassword("");
+          setMessage("Enter and save your new password below.");
+        }
       }
     );
 
@@ -63,50 +72,97 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    loadEvents();
+    const registerId = new URLSearchParams(window.location.search).get("register");
+    if (!registerId) return;
+
+    let active = true;
+    setPage("register");
+
+    async function loadSharedEvent() {
+      try {
+        const response = await fetch(`${API_URL}/api/public-events/${encodeURIComponent(registerId)}`);
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "This registration link is not available.");
+        if (active) setSelectedEvent(result);
+      } catch (error) {
+        if (active) setMessage(error.message || "Could not load this event.");
+      }
+    }
+
+    loadSharedEvent();
+    return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    loadEvents();
+  }, [session]);
 
   useEffect(() => {
     if (session) loadAdminData();
   }, [session]);
 
-  // Load events from Express backend API
+  // Signed-in users see only their own events. Logged-out visitors see no event list.
   async function loadEvents() {
     try {
-      const response = await fetch(`${API_URL}/api/events`);
+      if (session?.user?.id) {
+        const { data, error } = await supabase
+          .from("events")
+          .select("*")
+          .eq("owner_id", session.user.id)
+          .order("event_date", { ascending: true });
 
-      if (!response.ok) {
-        throw new Error("Could not load events from backend.");
+        if (error) throw error;
+        setPublicEvents(data || []);
+        return;
       }
 
-      const data = await response.json();
-      setPublicEvents(data || []);
+      setPublicEvents([]);
     } catch (error) {
       setMessage(`Could not load events: ${error.message}`);
     }
   }
 
-  // Admin data remains connected to Supabase
+  // Load only this signed-in user's events and registrations.
+  // Supabase RLS remains the database-level security boundary.
   async function loadAdminData() {
-    const [
-      { data: eventData, error: eventError },
-      { data: regData, error: regError }
-    ] = await Promise.all([
-      supabase.from("events").select("*").eq("owner_id", session.user.id).order("event_date", { ascending: true }),
-      supabase.from("registrations").select("*").order("id", { ascending: false })
-    ]);
-
-    if (eventError || regError) {
-      setMessage(
-        eventError?.message ||
-        regError?.message ||
-        "Could not load dashboard data."
-      );
+    if (!session?.user?.id) {
+      setEvents([]);
+      setRegistrations([]);
       return;
     }
 
-    setEvents(eventData || []);
-    setRegistrations(regData || []);
+    const { data: eventData, error: eventError } = await supabase
+      .from("events")
+      .select("*")
+      .eq("owner_id", session.user.id)
+      .order("event_date", { ascending: true });
+
+    if (eventError) {
+      setMessage(eventError.message || "Could not load your events.");
+      return;
+    }
+
+    const ownedEvents = eventData || [];
+    const ownedEventIds = ownedEvents.map((event) => event.id);
+
+    let registrationData = [];
+    if (ownedEventIds.length > 0) {
+      const { data, error: registrationError } = await supabase
+        .from("registrations")
+        .select("*")
+        .in("event_id", ownedEventIds)
+        .order("id", { ascending: false });
+
+      if (registrationError) {
+        setMessage(registrationError.message || "Could not load your registrations.");
+        return;
+      }
+      registrationData = data || [];
+    }
+
+    setEvents(ownedEvents);
+    setPublicEvents(ownedEvents);
+    setRegistrations(registrationData);
   }
 
   async function login(e) {
@@ -123,6 +179,29 @@ export default function App() {
 
     if (error) setMessage(error.message);
     else setPage("dashboard");
+  }
+
+  async function updatePassword(e) {
+    e.preventDefault();
+    if (password.length < 6) {
+      setMessage("Password must be at least 6 characters long.");
+      return;
+    }
+    setBusy(true);
+    setMessage("");
+    const { error } = await supabase.auth.updateUser({ password });
+    setBusy(false);
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+    await supabase.auth.signOut();
+    setSession(null);
+    setRecoveryMode(false);
+    setAuthMode("signin");
+    setPassword("");
+    setPage("login");
+    setMessage("Password updated successfully. Please sign in with your new password.");
   }
 
   async function signUp(e) {
@@ -154,9 +233,25 @@ export default function App() {
   async function logout() {
     await supabase.auth.signOut();
     setPage("home");
+    setPublicEvents([]);
+    setEvents([]);
     setRegistrations([]);
     setTicket(null);
     setMessage("");
+  }
+
+  async function shareEvent(event) {
+    if (!event.registration_token) {
+      setMessage("This event does not have a registration link yet. Please refresh your events and try again.");
+      return;
+    }
+    const registrationUrl = `${window.location.origin}${window.location.pathname}?register=${encodeURIComponent(event.registration_token)}`;
+    try {
+      await navigator.clipboard.writeText(registrationUrl);
+      setMessage("Registration link copied. You can share it with attendees.");
+    } catch {
+      setMessage(`Copy this registration link: ${registrationUrl}`);
+    }
   }
 
   async function addEvent(e) {
@@ -269,7 +364,7 @@ export default function App() {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          event_id: event.id,
+          registration_token: event.registration_token,
           student_name: studentName,
           email: studentEmail,
           phone: studentPhone
@@ -321,7 +416,7 @@ export default function App() {
       const response = await fetch(`${API_URL}/api/demo-payment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ticket_code: ticket.id })
+        body: JSON.stringify({ ticket_code: ticket.id, email: ticket.email })
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Demo payment could not be completed.");
@@ -342,7 +437,8 @@ export default function App() {
     const { error } = await supabase
       .from("registrations")
       .update({ [column]: value })
-      .eq("id", id);
+      .eq("id", id)
+      .in("event_id", events.map((event) => event.id));
 
     if (error) setMessage(error.message);
     else await loadAdminData();
@@ -354,7 +450,8 @@ export default function App() {
     const { error } = await supabase
       .from("registrations")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .in("event_id", events.map((event) => event.id));
 
     if (error) setMessage(error.message);
     else await loadAdminData();
@@ -382,7 +479,9 @@ export default function App() {
         page !== "registrations-admin" &&
         page !== "scanner-admin" &&
         page !== "reports-admin" &&
-        page !== "login" && (
+        page !== "login" &&
+        page !== "register" &&
+        page !== "ticket" && (
           <PublicHeader
             onHome={() => {
               setPage("home");
@@ -415,9 +514,41 @@ export default function App() {
         </div>
       )}
 
+      {page === "register" && (
+        <main className="auth-page">
+          <section className="auth-card">
+            <div className="brand-mark"><Ticket size={23} /></div>
+            <span className="eyebrow">EVENT REGISTRATION</span>
+            {selectedEvent ? (
+              <>
+                <h1>Book your spot</h1>
+                <h2>{selectedEvent.name}</h2>
+                <p className="muted">{formatDate(selectedEvent.event_date)} · {selectedEvent.venue}</p>
+                <p className="muted">Ticket price: ₹{Number(selectedEvent.ticket_price || 0).toLocaleString("en-IN")}</p>
+                <form className="stack-form" onSubmit={(e) => registerForEvent(e, selectedEvent)}>
+                  <label>Full name<input name="name" placeholder="Enter your full name" required /></label>
+                  <label>Email address<input name="email" type="email" placeholder="you@example.com" required /></label>
+                  <label>Phone number<input name="phone" type="tel" placeholder="Enter phone number" required /></label>
+                  <button className="btn btn-primary full" disabled={busy}>
+                    {busy ? "Registering…" : "Register & generate ticket"} <ArrowRight size={17} />
+                  </button>
+                </form>
+                <p className="fine-print">
+                  {Number(selectedEvent.ticket_price || 0) <= 0
+                    ? "This is a free event. Your ticket will be confirmed without payment."
+                    : "Your ticket will be created with Pending payment status. You can complete the demo payment on the next screen."}
+                </p>
+              </>
+            ) : (
+              <p className="muted">Loading event details… If this message remains, ask the event organizer for a new link.</p>
+            )}
+          </section>
+        </main>
+      )}
+
       {page === "home" && (
         <HomePage
-          events={publicEvents}
+          events={session ? publicEvents : []}
           onRegister={(event) => {
             setSelectedEvent(event);
             setMessage("");
@@ -554,10 +685,10 @@ export default function App() {
               className="btn btn-ghost"
               onClick={() => {
                 setTicket(null);
-                setPage("home");
+                setPage(session ? "dashboard" : "login");
               }}
             >
-              Back to events
+              Back to account
             </button>
           </div>
         </main>
@@ -565,30 +696,34 @@ export default function App() {
 
       {page === "login" && (
         <main className="auth-page">
-          <form className="auth-card" onSubmit={authMode === "signup" ? signUp : login}>
+          <form className="auth-card" onSubmit={recoveryMode ? updatePassword : (authMode === "signup" ? signUp : login)}>
             <div className="brand-mark">
               <Ticket size={23} />
             </div>
 
             <span className="eyebrow">EVENTHUB ACCOUNT</span>
-            <h1>{authMode === "signup" ? "Create your account" : "Welcome back"}</h1>
+            <h1>{recoveryMode ? "Set a new password" : (authMode === "signup" ? "Create your account" : "Welcome back")}</h1>
 
             <p className="muted">
-              {authMode === "signup"
-                ? "Create your own workspace to manage your events and registrations."
-                : "Sign in to manage your events, registrations and attendance."}
+              {recoveryMode
+                ? "Choose a new password for your EventHub account."
+                : (authMode === "signup"
+                  ? "Create your own workspace to manage your events and registrations."
+                  : "Sign in to manage your events, registrations and attendance.")}
             </p>
 
-            <label>
-              Email address
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@example.com"
-                required
-              />
-            </label>
+            {!recoveryMode && (
+              <label>
+                Email address
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@example.com"
+                  required
+                />
+              </label>
+            )}
 
             <label>
               Password
@@ -596,7 +731,8 @@ export default function App() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Your password"
+                placeholder={recoveryMode ? "Enter new password (at least 6 characters)" : "Your password"}
+                minLength={6}
                 required
               />
             </label>
@@ -605,31 +741,22 @@ export default function App() {
               className="btn btn-primary full"
               disabled={busy}
             >
-              {busy ? (authMode === "signup" ? "Creating account…" : "Signing in…") : (authMode === "signup" ? "Create account" : "Sign in")}
+              {busy ? (recoveryMode ? "Updating password…" : (authMode === "signup" ? "Creating account…" : "Signing in…")) : (recoveryMode ? "Update password" : (authMode === "signup" ? "Create account" : "Sign in"))}
               <ArrowRight size={17} />
             </button>
 
-            <button
-              type="button"
-              className="text-button"
-              onClick={() => {
-                setAuthMode(authMode === "signup" ? "signin" : "signup");
-                setMessage("");
-              }}
-            >
-              {authMode === "signup" ? "Already have an account? Sign in" : "New to EventHub? Create an account"}
-            </button>
-
-            <button
-              type="button"
-              className="text-button"
-              onClick={() => {
-                setPage("home");
-                setMessage("");
-              }}
-            >
-              ← Back to website
-            </button>
+            {!recoveryMode && (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => {
+                  setAuthMode(authMode === "signup" ? "signin" : "signup");
+                  setMessage("");
+                }}
+              >
+                {authMode === "signup" ? "Already have an account? Sign in" : "New to EventHub? Create an account"}
+              </button>
+            )}
 
             <p className="fine-print">
               Each account has its own event workspace. Confirm your email if prompted.
@@ -709,6 +836,7 @@ export default function App() {
 
             <EventTable
               events={events.slice(0, 5)}
+              onShare={shareEvent}
               onDelete={deleteEvent}
               onEdit={(event) => {
                 setEditingEvent(event);
@@ -732,7 +860,7 @@ export default function App() {
               <span className="eyebrow">EVENT MANAGEMENT</span>
               <h1>Your events</h1>
               <p className="muted">
-                Create and manage the events shown on your public website.
+                Create and manage your events, then share individual registration links with attendees.
               </p>
             </div>
 
@@ -820,6 +948,7 @@ export default function App() {
           <section className="admin-panel">
             <EventTable
               events={events}
+              onShare={shareEvent}
               onDelete={deleteEvent}
               onEdit={(event) => {
                 setEditingEvent(event);
@@ -1314,7 +1443,7 @@ function AdminLayout({ pageTitle, children, onNavigate, onLogout }) {
             className="back-site"
             onClick={() => onNavigate("home")}
           >
-            ← View public website
+            ← View Homepage
           </button>
         </div>
       </aside>
@@ -1348,7 +1477,7 @@ function StatCard({ title, value, icon }) {
   );
 }
 
-function EventTable({ events, onDelete, onEdit }) {
+function EventTable({ events, onDelete, onEdit, onShare }) {
   return (
     <div className="table-scroll">
       <table className="data-table">
@@ -1371,6 +1500,13 @@ function EventTable({ events, onDelete, onEdit }) {
               <td>₹{event.ticket_price}</td>
               <td>
                 <div className="event-row-actions">
+                  <button
+                    className="btn btn-small btn-ghost"
+                    onClick={() => onShare(event)}
+                    aria-label="Copy registration link"
+                  >
+                    <Share2 size={14} /> Share link
+                  </button>
                   <button
                     className="btn btn-small btn-ghost"
                     onClick={() => onEdit(event)}

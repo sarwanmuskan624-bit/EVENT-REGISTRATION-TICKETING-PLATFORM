@@ -23,7 +23,6 @@ test("API health endpoint responds successfully", async () => {
 
 test("events endpoint requires authentication", async () => {
   const { response, body } = await request("/api/events");
-
   assert.equal(response.status, 401);
   assert.match(body.error, /sign in/i);
 });
@@ -37,6 +36,22 @@ test("registration rejects an empty request without creating a record", async ()
 
   assert.equal(response.status, 400);
   assert.match(body.error, /event/i);
+});
+
+test("public event lookup rejects a malformed registration token", async () => {
+  const { response, body } = await request("/api/public-events/not-a-valid-token");
+  assert.equal(response.status, 400);
+  assert.match(body.error, /invalid event link/i);
+});
+
+test("demo payment requires the registered email as well as the ticket code", async () => {
+  const { response, body } = await request("/api/demo-payment", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ticket_code: "EHT-INVALID" })
+  });
+  assert.equal(response.status, 400);
+  assert.match(body.error, /email/i);
 });
 
 test("ticket validation rejects an empty ticket code", async () => {

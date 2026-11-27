@@ -50,34 +50,75 @@ app.get("/api/health", (_req, res) => {
   res.json({ success: true, service: "EventHub API" });
 });
 
-app.get("/api/events", async (_req, res) => {
+app.get("/api/events", async (req, res) => {
   try {
+    const authorization = String(req.headers.authorization || "");
+    const accessToken = authorization.startsWith("Bearer ")
+      ? authorization.slice(7).trim()
+      : "";
+
+    if (!accessToken) {
+      return res.status(401).json({ error: "Please sign in to view your events." });
+    }
+
+    const { data: authData, error: authError } = await supabase.auth.getUser(accessToken);
+    if (authError || !authData?.user) {
+      return res.status(401).json({ error: "Your session is invalid. Please sign in again." });
+    }
+
     const { data, error } = await supabase
       .from("events")
-      .select("*")
+      .select("id, name, event_date, venue, ticket_price, registration_token")
+      .eq("owner_id", authData.user.id)
       .order("event_date", { ascending: true });
 
     if (error) {
       console.error("EVENTS ERROR:", error.message);
-      return res.status(500).json({ error: "Unable to load events right now." });
+      return res.status(500).json({ error: "Unable to load your events right now." });
     }
 
     return res.json(data || []);
   } catch (error) {
     console.error("EVENTS ERROR:", error);
-    return res.status(500).json({ error: "Unable to load events right now." });
+    return res.status(500).json({ error: "Unable to load your events right now." });
+  }
+});
+
+app.get("/api/public-events/:token", async (req, res) => {
+  try {
+    const registrationToken = String(req.params.token || "").trim();
+    if (!/^[a-f0-9]{32}$/i.test(registrationToken)) {
+      return res.status(400).json({ error: "Invalid event link." });
+    }
+
+    const { data: event, error } = await supabase
+      .from("events")
+      .select("id, name, event_date, venue, ticket_price, registration_token")
+      .eq("registration_token", registrationToken)
+      .maybeSingle();
+
+    if (error) {
+      console.error("PUBLIC EVENT LOOKUP ERROR:", error.message);
+      return res.status(500).json({ error: "Could not load this event right now." });
+    }
+    if (!event) return res.status(404).json({ error: "This event link is invalid or the event was removed." });
+
+    return res.json(event);
+  } catch (error) {
+    console.error("PUBLIC EVENT LOOKUP ERROR:", error);
+    return res.status(500).json({ error: "Could not load this event right now." });
   }
 });
 
 app.post("/api/registrations", async (req, res) => {
   try {
-    const eventId = Number(req.body?.event_id);
+    const registrationToken = String(req.body?.registration_token || "").trim();
     const studentName = String(req.body?.student_name || "").trim();
     const email = String(req.body?.email || "").trim().toLowerCase();
     const phone = String(req.body?.phone || "").replace(/[^0-9+]/g, "");
 
-    if (!Number.isSafeInteger(eventId) || eventId <= 0) {
-      return res.status(400).json({ error: "Please select a valid event." });
+    if (!/^[a-f0-9]{32}$/i.test(registrationToken)) {
+      return res.status(400).json({ error: "Please open a valid event registration link." });
     }
     if (studentName.length < 2 || studentName.length > 100) {
       return res.status(400).json({ error: "Please enter a name between 2 and 100 characters." });
@@ -92,7 +133,7 @@ app.post("/api/registrations", async (req, res) => {
     const { data: event, error: eventError } = await supabase
       .from("events")
       .select("id, name, event_date, ticket_price")
-      .eq("id", eventId)
+      .eq("registration_token", registrationToken)
       .maybeSingle();
 
     if (eventError) {
@@ -100,8 +141,10 @@ app.post("/api/registrations", async (req, res) => {
       return res.status(500).json({ error: "Could not verify the selected event." });
     }
     if (!event) {
-      return res.status(404).json({ error: "The selected event no longer exists." });
+      return res.status(404).json({ error: "This event registration link is invalid or the event was removed." });
     }
+
+    const eventId = event.id;
     if (event.event_date) {
       const eventDate = new Date(`${event.event_date}T23:59:59`);
       if (!Number.isNaN(eventDate.getTime()) && eventDate < new Date()) {
@@ -163,16 +206,21 @@ app.post("/api/registrations", async (req, res) => {
 app.post("/api/demo-payment", async (req, res) => {
   try {
     const ticketCode = String(req.body?.ticket_code || "").trim();
-    if (!ticketCode) return res.status(400).json({ error: "Ticket ID is required." });
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    if (!ticketCode || !email) {
+      return res.status(400).json({ error: "Ticket ID and registered email are required for demo payment." });
+    }
 
     const { data: registration, error: findError } = await supabase
       .from("registrations")
-      .select("id, ticket_code, payment_status, event_id")
+      .select("id, ticket_code, email, payment_status, event_id")
       .eq("ticket_code", ticketCode)
       .maybeSingle();
 
     if (findError) return res.status(500).json({ error: "Could not find this registration." });
-    if (!registration) return res.status(404).json({ error: "Ticket not found." });
+    if (!registration || String(registration.email || "").trim().toLowerCase() !== email) {
+      return res.status(404).json({ error: "Ticket and registered email do not match." });
+    }
     if (registration.payment_status === "Paid") {
       return res.json({ success: true, payment_status: "Paid", message: "This ticket is already marked Paid." });
     }
@@ -202,6 +250,11 @@ app.post("/api/demo-payment", async (req, res) => {
 
 app.post("/api/validate-ticket", async (req, res) => {
   try {
+    const ticketCode = String(req.body?.ticket_code || "").trim();
+    if (!ticketCode) {
+      return res.status(400).json({ success: false, message: "Ticket code is required." });
+    }
+
     const authorization = String(req.headers.authorization || "");
     const accessToken = authorization.startsWith("Bearer ")
       ? authorization.slice(7).trim()
@@ -214,11 +267,6 @@ app.post("/api/validate-ticket", async (req, res) => {
     const { data: authData, error: authError } = await supabase.auth.getUser(accessToken);
     if (authError || !authData?.user) {
       return res.status(401).json({ success: false, message: "Your session is invalid. Please sign in again." });
-    }
-
-    const ticketCode = String(req.body?.ticket_code || "").trim();
-    if (!ticketCode) {
-      return res.status(400).json({ success: false, message: "Ticket code is required." });
     }
 
     const { data: ticket, error } = await supabase

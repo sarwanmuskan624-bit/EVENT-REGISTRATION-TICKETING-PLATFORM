@@ -2,7 +2,7 @@
 
 ## 1. Project Introduction
 
-EventHub is a web-based event registration and ticketing platform. Students can explore events, register online, complete a test payment, and receive a digital ticket with a unique QR code. Administrators can manage events, registrations, payments, reports and event entry.
+EventHub is a web-based event registration and ticketing platform. Each user has a separate workspace to create and manage their own events. Logged-out visitors see the general homepage, not a combined list of users' events. Organizers share a unique registration link for an event; attendees open that link, register and receive a digital ticket with a unique Ticket ID and QR code.
 
 ## 2. Technologies Used
 
@@ -10,67 +10,73 @@ EventHub is a web-based event registration and ticketing platform. Students can 
 - **Backend:** Node.js and Express.js
 - **Database:** Supabase (PostgreSQL)
 - **Authentication:** Supabase Authentication
-- **Payments:** Demo payment simulation (no real money)
+- **Payments:** Demo payment simulation only (no real money)
 - **QR Tickets:** qrcode.react
 - **QR Scanning:** html5-qrcode
 - **Deployment:** GitHub Pages (frontend) and Render (backend)
 
 ## 3. Main Features
 
-### Student / Public Website
-1. Browse upcoming events with date, venue and ticket price.
-2. Register with name, email and phone number.
-3. Prevent duplicate registrations for the same event and email.
-4. Generate a unique Ticket ID and QR code.
-5. Complete the demo payment simulation for paid events.
-6. View and print the digital ticket.
+### User / Organizer Workspace
+1. Create an account and sign in using Supabase Authentication.
+2. View a general public homepage while signed out.
+3. After login, view and manage only the events belonging to the signed-in account.
+4. Create, edit and delete own events.
+5. View registrations for own events, search records and view tickets.
+6. View dashboard summaries, reports and export registration records to CSV.
 
-### Admin Workspace
-1. Secure admin login using Supabase Authentication.
-2. Dashboard with event, registration, paid-ticket and check-in counts.
-3. Create, edit and delete events.
-4. Search registrations by student name, email or Ticket ID.
-5. View a student's complete digital ticket.
-6. Review payment and attendance status.
-7. Scan QR codes or manually enter Ticket IDs for validation.
-8. Reject invalid tickets and prevent duplicate check-ins.
-9. View payment, attendance and event-wise analytics.
-10. Export registration records to CSV.
+### Attendee Registration
+1. Organizer copies and shares a unique registration link for one event.
+2. Attendee opens the link without needing access to the organizer dashboard.
+3. Attendee submits name, email and phone number.
+4. Backend validates the link and details and rejects duplicate registration for the same event/email.
+5. EventHub generates a unique Ticket ID and QR code.
+6. Attendee can view and print the digital ticket.
+7. For a paid event, the attendee can complete a clearly labelled demo payment simulation. No real money is charged.
+
+### Ticket Entry
+1. Organizer signs in to their own workspace.
+2. Organizer scans the attendee QR code or enters the Ticket ID manually.
+3. Backend checks ticket validity, payment status and event ownership.
+4. A successful first check-in marks the attendee Present; a repeated check-in is rejected.
 
 ## 4. Database
 
-The project uses Supabase PostgreSQL with two main tables.
+The project uses Supabase PostgreSQL.
 
 **Events**
-- id
-- name
-- event_date
-- venue
-- ticket_price
+- id – event identifier
+- owner_id – ID of the account that owns the event
+- name – event name
+- event_date – event date
+- venue – event venue
+- ticket_price – ticket price
+- registration_token – unique token used in the event registration link
 
 **Registrations**
-- id
-- event_id
-- student_name
-- email
-- phone
-- ticket_code
-- payment_status
-- attendance_status
-- created_at
-- (No payment-gateway credentials or payment IDs are stored)
+- id – registration identifier
+- event_id – related event
+- student_name – attendee name
+- email – attendee email
+- phone – attendee phone number
+- ticket_code – unique ticket ID
+- payment_status – Pending/Paid project status
+- attendance_status – Absent/Present
+- created_at – registration timestamp
 
-Row Level Security (RLS) is enabled. The backend uses its private Supabase service key; it must never be exposed in frontend code or GitHub.
+The exact live column types and constraints are maintained in Supabase. Row Level Security policies and backend ownership checks are important parts of access control.
 
 ## 5. How the Project Works
 
-1. A student opens the public EventHub website and selects an event.
-2. The student submits registration details.
-3. The backend validates the details, checks for duplicate registrations and saves the registration.
-4. EventHub generates a unique Ticket ID and QR ticket.
-5. For a paid event, the student can choose Complete demo payment. The backend updates the ticket status to Paid for project demonstration; no payment gateway is contacted and no real money is charged.
-8. The admin can scan the QR code or enter the Ticket ID to check in the attendee.
-9. The admin reviews analytics and exports registration data when required.
+1. A user signs in and creates an event in their own workspace.
+2. EventHub stores the event with its owner ID and a unique registration token.
+3. The organizer shares the event-specific registration link with attendees.
+4. The attendee opens the link and submits registration details.
+5. The backend validates the token and attendee data, checks for a duplicate registration and saves the registration.
+6. EventHub generates a unique Ticket ID and QR ticket.
+7. For a paid event, the attendee may complete the demo payment simulation. It updates the project status only; no payment gateway is contacted and no real money is charged.
+8. The organizer scans the QR code or enters the Ticket ID to check in the attendee.
+9. The organizer reviews reports and can export registration data.
 
 ## 6. Deployment
 
@@ -79,26 +85,31 @@ Row Level Security (RLS) is enabled. The backend uses its private Supabase servi
 - **Backend:** https://event-registration-ticketing-platform.onrender.com
 - **Database and Authentication:** Supabase
 
-## 7. Testing Performed
+## 7. Testing
 
-- Public event listing and event registration.
-- Duplicate registration validation.
-- Ticket ID and QR ticket generation.
-- Admin login.
-- Add, edit and delete event operations.
-- Registration search and View Ticket.
-- Payment and attendance status management.
+The project has been manually tested during development, including:
+- Public homepage and logged-out event privacy.
+- Login and account-specific event visibility using separate accounts.
+- Event creation, editing and deletion.
+- Unique event registration link and attendee registration.
+- Duplicate registration rejection.
+- Ticket ID and QR code generation and printing.
+- Demo payment simulation.
 - QR scanner and manual Ticket ID validation.
-- Reports, charts and CSV export.
-- Demo payment flow and paid-ticket check-in.
+- Duplicate check-in prevention.
+- Reports and CSV export.
+- Responsive layout checks in browser device emulation.
 
-**Payment note:** The payment button is a clearly labelled academic demo simulation. It does not contact a payment gateway or charge real money. A real payment gateway would require merchant onboarding, credentials and security review.
+These are development walkthrough checks; run the current test checklist again before a formal release.
+
+**Payment note:** The payment button is an academic demo simulation. It does not contact a payment gateway or charge real money. A real payment gateway would require merchant onboarding, secure server-side integration and payment verification.
 
 ## 8. Challenges Faced
 
 - Connecting React with the Express backend and Supabase.
-- Configuring database tables and Row Level Security.
-- Implementing admin authentication and CRUD operations.
+- Configuring database tables, authentication and Row Level Security.
+- Separating each user's event workspace.
+- Creating secure, event-specific registration links.
 - Generating and validating QR tickets.
 - Implementing a clearly labelled demo payment workflow.
 - Deploying the frontend and backend separately.
@@ -108,11 +119,12 @@ Row Level Security (RLS) is enabled. The backend uses its private Supabase servi
 - Email confirmations and ticket delivery.
 - Configurable event capacity and registration deadlines.
 - Downloadable PDF tickets.
-- Optional real payment gateway integration after merchant onboarding and production security review.
+- Real payment gateway integration after merchant onboarding and production security review.
+- More automated tests for security and account isolation.
 
 ## 10. Conclusion
 
-EventHub demonstrates a full-stack event registration and ticketing workflow using React, Express, Supabase, demo payment simulation and QR validation. The project provides practical experience in frontend development, backend APIs, database operations, authentication, payment verification, reporting and deployment.
+EventHub demonstrates a full-stack event registration and ticketing workflow using React, Express, Supabase, account-specific workspaces, token-based registration links, demo payment simulation and QR validation. It provides practical experience in frontend development, backend APIs, database operations, authentication, access control, reporting and deployment.
 
 ---
 
@@ -122,17 +134,19 @@ EventHub demonstrates a full-stack event registration and ticketing workflow usi
 
 My project name is EventHub – Event Registration and Ticketing Platform.
 
-The purpose of this project is to make event registration, ticket booking and entry management easier.
+The purpose of this project is to make event registration, ticket generation and entry management easier.
 
-I developed the frontend using React and Vite, the backend using Node.js and Express, and I used Supabase for the database and admin authentication.
+I developed the frontend using React and Vite, the backend using Node.js and Express, and I used Supabase for the database and user authentication.
 
-Students can explore events, register online, complete a demo payment simulation for paid events and receive a digital ticket with a QR code.
+Each organizer has a separate account and can manage only their own events. The public homepage does not show a combined list of all users' events. Instead, an organizer shares a unique registration link for a particular event with attendees.
 
-The admin can manage events, search registrations, view tickets, verify QR codes at the entry gate and view reports and analytics.
+Attendees open that link, fill in their details and receive a digital ticket with a unique Ticket ID and QR code. The organizer can scan the QR code or enter the Ticket ID to verify the ticket and manage entry.
 
-I also deployed the frontend on GitHub Pages and the backend on Render.
+The project also includes reports, CSV export and a demo payment simulation. The payment feature is only for demonstration and does not charge real money.
 
-While developing this project, I learned frontend development, backend API integration, database management, authentication, payment verification, QR scanning and deployment.
+I deployed the frontend on GitHub Pages and the backend on Render.
+
+While developing this project, I learned frontend development, backend API integration, database management, authentication, access control, QR code generation and validation, reporting and deployment.
 
 Thank you."
 
@@ -158,30 +172,34 @@ Supabase is a backend platform that provides a PostgreSQL database, authenticati
 
 CRUD stands for Create, Read, Update and Delete.
 
-**Q6. What is demo payment mode?**
+**Q6. How does EventHub separate users' events?**
+
+Each event stores an owner_id. Event queries filter records using the signed-in user's ID, and the backend checks ownership for protected operations such as ticket validation.
+
+**Q7. What is a registration token?**
+
+It is a unique token in an event-specific link. The backend uses it to find the one event the attendee is allowed to register for.
+
+**Q8. What is demo payment mode?**
 
 It is a project simulation that marks a ticket as Paid for demonstration. It does not connect to a payment gateway or charge real money.
 
-**Q7. Why is payment signature verification required?**
-
-For this academic demo, the backend updates the payment status through a clearly labelled simulation endpoint. It is not suitable for real payments.
-
-**Q8. How is the QR code generated?**
+**Q9. How is the QR code generated?**
 
 I used the qrcode.react library to generate a QR code containing the unique Ticket ID.
 
-**Q9. How does QR ticket validation work?**
+**Q10. How does QR ticket validation work?**
 
-The scanner reads the Ticket ID from the QR code. The backend checks the ticket, payment status and attendance status before marking the attendee Present.
+The scanner reads the Ticket ID from the QR code. The backend checks the ticket, payment status and event ownership before marking the attendee Present. A repeated check-in is rejected.
 
-**Q10. What is RLS?**
+**Q11. What is RLS?**
 
 RLS stands for Row Level Security. It controls which users can access or modify database records.
 
-**Q11. Where is the project deployed?**
+**Q12. Where is the project deployed?**
 
 The frontend is deployed on GitHub Pages and the Express backend is hosted on Render. Supabase provides the database and authentication.
 
-**Q12. What did you learn from this project?**
+**Q13. What did you learn from this project?**
 
-I learned React, Node.js, Express, Supabase, authentication, CRUD operations, demo payment simulation, QR code generation and validation, reporting and deployment.
+I learned React, Node.js, Express, Supabase, authentication, CRUD operations, access control, demo payment simulation, QR code generation and validation, reporting and deployment.
