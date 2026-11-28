@@ -121,7 +121,7 @@ The event's owner relationship is used to scope organizer event access. Registra
 - Database and authentication: Supabase
 
 ## 12. Testing
-A repeatable API smoke-test suite is available at server/test/api.test.js. Run it from the repository root using npm run test:api. It checks safe health, response-shape and invalid-input paths. It does not replace manual end-to-end testing. See TESTING.md for the checklist and previously reported walkthrough results.
+A repeatable API smoke-test suite is available at server/test/api.test.js. Run it from the repository root using npm run test:api. The latest recorded run on 28 November 2026 completed with 7 tests passed, 0 failed and 0 skipped. The frontend production build also completed successfully on 28 November 2026; Vite reported a bundle-size warning, not a build failure. These checks do not replace manual end-to-end testing. See TESTING.md for individual API cases, build details, the regression checklist and previously reported walkthrough results.
 
 ## 13. Expected outcomes
 - Keeps each organizer's event workspace separate.
