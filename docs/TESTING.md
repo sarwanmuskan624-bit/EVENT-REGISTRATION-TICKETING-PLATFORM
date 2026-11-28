@@ -1,21 +1,35 @@
 # EventHub Testing Plan and Results
 
 ## Test approach
-The project has been exercised manually during development. A repeatable API smoke-test suite is included in server/test/api.test.js. It checks safe read and invalid-input paths against the deployed backend and does not create registrations or change payment/attendance data.
+The project has been exercised manually during development. A repeatable API smoke-test suite is included in server/test/api.test.js. It checks the health endpoint, authentication requirements and invalid-input paths against the deployed backend. The suite does not create registrations or change payment/attendance data.
 
-Run from the repository root: npm run test:api
+Run from the repository root: `npm run test:api`
 
-For a local backend in PowerShell: set $env:API_URL="http://localhost:5000" then run the command above.
+For a local backend in PowerShell: `$env:API_URL="http://localhost:5000"` then run the command above.
 
 ## Automated API test cases
 | ID | Test | Expected result |
 |---|---|---|
 | API-01 | GET /api/health | HTTP 200 and success=true |
-| API-02 | GET /api/events without bearer token | HTTP 401; sign-in required |
-| API-03 | POST /api/registrations with empty body | HTTP 400; valid event token required |
-| API-04 | POST /api/validate-ticket with empty body | HTTP 400; ticket code required |
-| API-05 | POST /api/demo-payment with empty body | HTTP 400; ticket code required |
-| API-06 | GET /api/public-events/:token with malformed token | HTTP 400; invalid event link |
+| API-02 | GET /api/events without bearer token | Request is rejected because authentication is required |
+| API-03 | POST /api/registrations with an empty request | Request is rejected; no registration is created |
+| API-04 | GET /api/public-events/:token with a malformed token | Request is rejected as an invalid event link |
+| API-05 | Demo payment with a ticket code but without matching registered email details | Payment simulation is rejected |
+| API-06 | POST /api/validate-ticket with an empty ticket code | Request is rejected; ticket code is required |
+| API-07 | Demo payment without a ticket code | Payment simulation is rejected; ticket code is required |
+
+## Latest automated API test run
+The following result was recorded from the deployed API test command on 28 November 2026:
+
+- Tests: 7
+- Passed: 7
+- Failed: 0
+- Skipped: 0
+
+These are the results shown by the latest `npm run test:api` execution. Run the suite again after relevant backend changes.
+
+## Production build check
+On 28 November 2026, `npm run build` completed successfully using Vite 8.3.5 and generated the `dist` folder. Vite displayed a bundle-size warning because the generated JavaScript chunk was larger than 500 kB; this was a warning, not a build failure.
 
 ## Manual end-to-end regression checklist
 Use two test accounts and disposable test events. Do not delete real records or use personal contact information.
@@ -44,4 +58,4 @@ Use two test accounts and disposable test events. Do not delete real records or 
 The user previously reported that the public homepage, logout behavior, account-specific event visibility and second-account checks worked. They also confirmed successful registration, Ticket ID/QR generation, demo-payment status, manual Ticket ID check-in, rejection of a second check-in, and CSV export control visibility. Mobile layout was also checked in browser device emulation. These are conversation-reported checks, not a fresh automated test execution.
 
 ## Result recording
-Do not mark a test as passed until it has been run on the current deployment. Record date, browser, test ID, actual result and pass/fail status after running the suite and manual checklist.
+For future manual regression runs, record the date, browser, test ID, actual result and pass/fail status. Do not mark a manual test as passed unless it has been run on the current deployment.
