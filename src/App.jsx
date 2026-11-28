@@ -1138,7 +1138,7 @@ function PublicHeader({
       <nav className={mobileMenu ? "public-nav open" : "public-nav"}>
         <button onClick={onHome}>Home</button>
         <button onClick={onEvents}>Explore events</button>
-        <button onClick={onAdmin}>Admin</button>
+        <button onClick={onAdmin}>Organizer Login</button>
       </nav>
 
       <button className="btn btn-primary header-cta" onClick={onEvents}>
